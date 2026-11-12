@@ -147,14 +147,14 @@ if ($route === 'api') {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Leer cuerpo JSON
+// Leer cuerpo JSON (compatible con servidores web vía php://input y entornos CLI vía php://stdin)
 $inputRaw = file_get_contents('php://input');
+if ($inputRaw === false || $inputRaw === '') {
+    $inputRaw = @file_get_contents('php://stdin') ?: '';
+}
 $input = json_decode($inputRaw, true);
 if (!is_array($input)) {
     $input = $_POST ?: [];
-}
-if ((!is_array($input) || empty($input)) && isset($GLOBALS['MOCK_INPUT']) && is_array($GLOBALS['MOCK_INPUT'])) {
-    $input = $GLOBALS['MOCK_INPUT'];
 }
 
 try {
