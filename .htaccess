@@ -1,0 +1,32 @@
+# ==============================================================================
+# Configuración Apache / LiteSpeed para Hostinger - Parchís Educativo
+# ==============================================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirigir todas las llamadas a la API hacia api.php pasando la ruta
+    RewriteRule ^api/(.*)$ api.php?route=$1 [QSA,L]
+    RewriteRule ^api$ api.php?route= [QSA,L]
+
+    # Servir archivos y carpetas existentes directamente (index.html, css, js, etc.)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Cualquier otra ruta sirve el frontend index.html
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# ==============================================================================
+# SEGURIDAD: Proteger la base de datos SQLite contra descargas directas
+# ==============================================================================
+<FilesMatch "\.(sqlite|sqlite3|db)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Para Apache 2.4+ (Hostinger / cPanel)
+<Files "database.sqlite">
+    Require all denied
+</Files>
