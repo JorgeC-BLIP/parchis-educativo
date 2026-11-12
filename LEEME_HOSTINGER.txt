@@ -1,0 +1,54 @@
+# 🚀 Instrucciones de Despliegue en Hostinger (PHP + SQLite)
+
+Esta carpeta `hostinger_deploy` contiene todo lo necesario para alojar **Parchís Educativo** en un hosting compartido de Hostinger (o cualquier servidor Apache/LiteSpeed con PHP y SQLite) sin requerir Node.js en producción.
+
+---
+
+## 📁 Archivos incluidos
+
+1. **`index.html`**:
+   Interfaz frontend completa (tablero de Parchís, tema oscuro, reglas pedagógicas, Web Audio API, parser Aiken, modal de preguntas y sala de 2 a 4 jugadores). Realiza peticiones a `/api/...` de forma nativa.
+
+2. **`api.php`**:
+   Backend REST ligero y de alto rendimiento en PHP usando **PDO SQLite**. Reemplaza al 100% el servidor Node.js/Express:
+   - Inicializa automáticamente las tablas `docentes`, `estudiantes`, `preguntas` y `resultados_partidas`.
+   - Inicializa automáticamente la cuenta demo del docente (`docente@clase.edu` / `docente123`) y las 12 preguntas educativas por defecto.
+   - Atiende todas las rutas:
+     * `POST /api/docentes/login`
+     * `GET /api/docentes`
+     * `POST /api/estudiantes` y `POST /api/estudiantes/registro`
+     * `POST /api/estudiantes/login`
+     * `GET /api/estudiantes`
+     * `GET /api/preguntas` (con filtro opcional `?materia=...`)
+     * `POST /api/preguntas`
+     * `POST /api/preguntas/bulk`
+     * `DELETE /api/preguntas/{id}`
+     * `DELETE /api/estudiantes/{id}`
+     * `GET/POST /api/resultados`
+     * `GET /api/health`
+
+3. **`.htaccess`**:
+   - Redirige de forma transparente cualquier solicitud `/api/*` hacia `api.php`.
+   - Permite que `fetch('/api/...')` en `index.html` funcione tal cual, sin modificar el código frontend.
+   - **Seguridad**: Bloquea el acceso y descarga directa al archivo `database.sqlite` desde la web.
+
+4. **`database.sqlite`**:
+   Base de datos SQLite precargada. Si no se sube o se elimina, `api.php` la creará de nuevo automáticamente.
+
+---
+
+## 📤 Pasos para subir a Hostinger (hPanel)
+
+1. Ingresa a tu panel de control de **Hostinger (hPanel)**.
+2. Ve a **Administrador de Archivos (File Manager)** de tu dominio.
+3. Entra a la carpeta **`public_html/`** (o a la subcarpeta donde quieras publicar el juego, ej. `public_html/parchis/`).
+4. Sube todos los archivos de esta carpeta (`hostinger_deploy`):
+   - `.htaccess` (asegúrate de que los archivos ocultos estén visibles)
+   - `index.html`
+   - `api.php`
+   - `database.sqlite`
+5. **Permisos de escritura para SQLite:**
+   - La carpeta donde reside `database.sqlite` (por ejemplo `public_html/`) debe tener permisos de escritura para que el usuario web de PHP pueda crear/actualizar la base de datos (generalmente permisos `755` o `775`).
+   - El archivo `database.sqlite` debe tener permisos `644` o `664`.
+6. ¡Listo! Abre tu dominio en el navegador (por ejemplo `https://tudominio.com/` o `https://tudominio.com/parchis/`) y el juego estará funcionando al 100%.
+

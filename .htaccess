@@ -30,3 +30,4 @@
 <Files "database.sqlite">
     Require all denied
 </Files>
+
