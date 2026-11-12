@@ -1,0 +1,2128 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parchís Educativo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 20% 10%, #1e1b4b 0%, #0f172a 55%, #020617 100%);
+      color: #f8fafc;
+    }
+
+    /* Tarjetas con estilo cristal oscuro elegante */
+    .glass-card {
+      background: rgba(30, 41, 59, 0.78);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.65);
+    }
+
+    .glass-subcard {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    /* Marco del Tablero estilo madera noble */
+    .board-frame {
+      background: linear-gradient(145deg, #451a03, #270e02);
+      padding: 14px;
+      border-radius: 28px;
+      box-shadow:
+        0 25px 60px -10px rgba(0, 0, 0, 0.85),
+        0 0 0 2px rgba(251, 191, 36, 0.25),
+        inset 0 2px 4px rgba(255, 255, 255, 0.15);
+      width: 100%;
+      max-width: 680px;
+    }
+
+    /* Cuadrícula Oficial de Parchís 19x19 */
+    .parchis-grid {
+      display: grid;
+      grid-template-columns: repeat(19, minmax(0, 1fr));
+      grid-template-rows: repeat(19, minmax(0, 1fr));
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #f8fafc;
+      border: 2.5px solid #0f172a;
+      position: relative;
+    }
+
+    .p-cell {
+      border: 0.5px solid #cbd5e1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8.5px;
+      font-weight: 800;
+      color: #334155;
+      user-select: none;
+    }
+
+    /* Casas en las 4 esquinas */
+    .home-zone {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12%;
+      border: 1px solid #0f172a;
+    }
+
+    .home-inner-card {
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      border-radius: 22px;
+      box-shadow: inset 0 3px 8px rgba(15, 23, 42, 0.18), 0 4px 10px rgba(0, 0, 0, 0.25);
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 14%;
+      padding: 16%;
+    }
+
+    .home-pocket {
+      border-radius: 9999px;
+      border: 2px dashed rgba(100, 116, 139, 0.4);
+      background: #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .safe-cell::before {
+      content: '★';
+      position: absolute;
+      font-size: 13px;
+      opacity: 0.28;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Fichas con relieve 3D */
+    .piece-token {
+      width: 82%;
+      height: 82%;
+      min-width: 15px;
+      min-height: 15px;
+      border-radius: 9999px;
+      border: 2px solid #ffffff;
+      box-shadow:
+        0 4px 6px rgba(15, 23, 42, 0.5),
+        inset 0 3px 4px rgba(255, 255, 255, 0.75),
+        inset 0 -3px 5px rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8.5px;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 15;
+    }
+
+    .piece-in-home {
+      width: 76%;
+      height: 76%;
+    }
+
+    .piece-playable {
+      cursor: pointer;
+      animation: pulsePiece 0.8s infinite ease-in-out;
+      z-index: 30;
+    }
+
+    .piece-playable:hover {
+      transform: scale(1.35) !important;
+    }
+
+    @keyframes pulsePiece {
+
+      0%,
+      100% {
+        transform: scale(1.15);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.95), 0 0 0 3px #6366f1, 0 6px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      50% {
+        transform: scale(1.28) translateY(-2px);
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px rgba(99, 102, 241, 0.45), 0 10px 16px rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    /* Dado 3D visual */
+    .dice-cube {
+      width: 66px;
+      height: 66px;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #ffffff, #e2e8f0);
+      border: 2px solid #94a3b8;
+      box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.45), inset 0 2px 3px #ffffff;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      padding: 10px;
+      gap: 4px;
+    }
+
+    .pip {
+      width: 100%;
+      height: 100%;
+      border-radius: 9999px;
+      background: #0f172a;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+    }
+
+    .pip-highlight {
+      background: #e11d48;
+    }
+
+    .dice-spin {
+      animation: diceShake 0.4s infinite linear;
+    }
+
+    @keyframes diceShake {
+      0% {
+        transform: rotate(0deg) scale(1.08);
+      }
+
+      25% {
+        transform: rotate(-18deg) scale(1.15);
+      }
+
+      50% {
+        transform: rotate(18deg) scale(1.08);
+      }
+
+      75% {
+        transform: rotate(-12deg) scale(1.14);
+      }
+
+      100% {
+        transform: rotate(0deg) scale(1);
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.28s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -12px;
+      z-index: 60;
+      animation: dropConfetti 3.2s linear forwards;
+    }
+
+    @keyframes dropConfetti {
+      to {
+        transform: translateY(105vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+  <!-- Barra Superior -->
+  <header class="bg-slate-950/90 backdrop-blur-md text-white shadow-2xl sticky top-0 z-40 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-600 flex items-center justify-center text-xl shadow-lg">
+          🎲
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg tracking-tight leading-none text-white">Parchís Educativo</h1>
+          <p class="text-xs text-slate-400 mt-1">Reglas Oficiales • 2 a 4 Estudiantes • Formato Aiken</p>
+        </div>
+      </div>
+
+      <nav class="flex items-center gap-2">
+        <button id="btn-sound" onclick="toggleSound()" title="Sonido"
+          class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm transition">
+          🔊
+        </button>
+        <button id="nav-lobby" onclick="switchView('lobby')"
+          class="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition">
+          Estudiantes y Sala
+        </button>
+        <button id="nav-docente" onclick="switchView('docente')"
+          class="px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+          Panel Docente
+        </button>
+        <button id="nav-juego" onclick="switchView('juego')"
+          class="hidden px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition">
+          Tablero Activo
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm"></div>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+
+    <!-- ==================== VISTA 1: ESTUDIANTES Y SALA DE PARTIDA ==================== -->
+    <section id="view-lobby" class="fade-in grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Registro de Estudiantes en Base de Datos -->
+      <div class="lg:col-span-5 glass-card rounded-3xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">Registro de Estudiantes</h2>
+            <p class="text-xs text-slate-400">Almacenamiento en Base de Datos (Cédula 10 dígitos)</p>
+          </div>
+          <span
+            class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            SQLite / BD Activa
+          </span>
+        </div>
+
+        <form id="form-registro-estudiante" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">Nombres *</label>
+              <input type="text" id="est-nombres" required placeholder="Ej. Carlos"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">Apellidos *</label>
+              <input type="text" id="est-apellidos" required placeholder="Ej. Mendoza"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-bold text-slate-300">Número de Cédula (10 dígitos) *</label>
+              <span id="cedula-counter" class="text-[11px] font-bold text-slate-400">0 / 10</span>
+            </div>
+            <input type="text" id="est-cedula" required maxlength="10" inputmode="numeric" placeholder="Ej. 0912345678"
+              oninput="sanitizarCedulaInput(this)"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm tracking-wider font-mono focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Correo Electrónico *</label>
+            <input type="email" id="est-correo" required placeholder="carlos@estudiante.edu"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+          </div>
+
+          <button type="submit"
+            class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/30 transition">
+            Guardar en Base de Datos y Unir
+          </button>
+        </form>
+
+        <!-- Ingreso rápido -->
+        <div class="mt-5 pt-4 border-t border-slate-700/80">
+          <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2">
+            Ingreso Rápido con Cédula o Correo
+          </label>
+          <div class="flex gap-2">
+            <input type="text" id="login-identificador" placeholder="Cédula (10 dígitos) o correo"
+              class="flex-1 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button type="button" onclick="ingresarEstudianteExistente()"
+              class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold transition">
+              Ingresar
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de estudiantes en BD -->
+        <div class="mt-5 pt-4 border-t border-slate-700/80">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Estudiantes Guardados en
+              BD</span>
+            <span id="db-students-count" class="text-xs font-bold text-indigo-400">0</span>
+          </div>
+          <div id="db-students-list" class="max-h-40 overflow-y-auto space-y-2 pr-1"></div>
+        </div>
+      </div>
+
+      <!-- Mesa de Jugadores (2 a 4 Estudiantes) -->
+      <div class="lg:col-span-7 glass-card rounded-3xl p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-700/80">
+            <div>
+              <h2 class="text-xl font-extrabold text-white">Jugadores de la Partida</h2>
+              <p class="text-xs text-slate-400">Se requiere un mínimo de 2 y un máximo de 4 estudiantes registrados.</p>
+            </div>
+            <span id="lobby-count-badge"
+              class="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              0 / 4 Jugadores
+            </span>
+          </div>
+
+          <!-- Materia Evaluada -->
+          <div class="mt-4 glass-subcard p-4 rounded-2xl">
+            <label class="block text-xs font-extrabold uppercase tracking-wider text-indigo-300 mb-1.5">
+              Materia Seleccionada para el Tablero
+            </label>
+            <select id="lobby-materia-select"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="TODAS">Todas las materias cargadas</option>
+            </select>
+            <p id="lobby-questions-info" class="text-xs text-slate-400 font-medium mt-1.5"></p>
+          </div>
+
+          <!-- 4 Puestos del Tablero -->
+          <div id="lobby-slots" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+        </div>
+
+        <div
+          class="mt-6 pt-4 border-t border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p id="lobby-validation-msg" class="text-xs font-bold text-rose-400">
+            Agrega al menos 2 estudiantes registrados para iniciar.
+          </p>
+          <button id="btn-start-game" disabled onclick="iniciarPartida()"
+            class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">
+            Comenzar Partida
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VISTA 2: PANEL DOCENTE (CON CUENTA Y AIKEN) ==================== -->
+    <section id="view-docente" class="hidden fade-in">
+
+      <!-- Pantalla de Inicio de Sesión / Cuenta Docente -->
+      <div id="docente-auth-box" class="max-w-md mx-auto glass-card rounded-3xl p-7 mt-4">
+        <div
+          class="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-2xl mb-4">
+          👨‍🏫
+        </div>
+        <h2 class="text-xl font-extrabold text-white">Cuenta del Docente</h2>
+        <p class="text-xs text-slate-400 mt-1 mb-5">
+          Inicia sesión o registra tu cuenta docente en la base de datos para gestionar el banco de preguntas.
+        </p>
+
+        <form id="form-docente-login" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Nombre del Docente *</label>
+            <input type="text" id="doc-nombre" required placeholder="Ej. Prof. Ana Torres"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Correo Institucional *</label>
+            <input type="email" id="doc-correo" required placeholder="docente@institucion.edu"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Clave de Acceso *</label>
+            <input type="password" id="doc-clave" required placeholder="••••••••"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <button type="submit"
+            class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-lg transition">
+            Ingresar / Registrar Cuenta Docente
+          </button>
+        </form>
+
+        <div class="mt-4 pt-4 border-t border-slate-700/80 text-center">
+          <button type="button" onclick="autocompletarCuentaDocente()"
+            class="text-xs font-bold text-indigo-400 hover:text-indigo-300 underline">
+            Usar cuenta docente de demostración (docente@clase.edu)
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel de Gestión de Preguntas (Visible tras iniciar sesión docente) -->
+      <div id="docente-panel-content" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-12 glass-card rounded-2xl px-5 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2.5 text-xs">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-300">Sesión Docente Activa:</span>
+            <strong id="doc-active-label" class="text-white">Docente</strong>
+          </div>
+          <button type="button" onclick="cerrarSesionDocente()"
+            class="text-xs font-bold text-rose-400 hover:text-rose-300">
+            Cerrar Cuenta Docente
+          </button>
+        </div>
+
+        <div class="lg:col-span-6 space-y-6">
+          <!-- Importación Aiken -->
+          <div class="glass-card rounded-3xl p-6">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-extrabold text-white">Cargar Preguntas en Formato Aiken</h2>
+              <button type="button" onclick="cargarEjemploAiken()"
+                class="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-600/50 transition">
+                + Cargar 12 ejemplos Aiken
+              </button>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">
+              Sube un archivo <code>.txt</code> o pega preguntas con 4 opciones (A, B, C, D) y <code>ANSWER: X</code>.
+            </p>
+
+            <div class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">Materia *</label>
+                <input type="text" id="aiken-materia" placeholder="Ej. Cultura General, Matemáticas, Ciencias..."
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">Archivo .txt (Opcional)</label>
+                <input type="file" id="aiken-file" accept=".txt" onchange="leerArchivoAiken(event)"
+                  class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-300 mb-1">Bloque de Preguntas Aiken</label>
+                <textarea id="aiken-textarea" rows="8" oninput="previsualizarAiken()"
+                  placeholder="¿Cuál es la capital de Ecuador?&#10;A. Guayaquil&#10;B. Quito&#10;C. Cuenca&#10;D. Loja&#10;ANSWER: B"
+                  class="w-full p-3.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 font-mono text-xs outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+              </div>
+
+              <div class="flex items-center justify-between pt-1">
+                <span id="aiken-preview-count" class="text-xs font-bold text-indigo-400">0 preguntas válidas
+                  detectadas</span>
+                <button type="button" onclick="guardarPreguntasAiken()"
+                  class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow transition">
+                  Guardar en Base de Datos
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Formulario Manual -->
+          <div class="glass-card rounded-3xl p-6">
+            <h2 class="text-lg font-extrabold text-white mb-3">Agregar Pregunta Manualmente</h2>
+            <form id="form-pregunta-manual" class="space-y-3">
+              <input type="text" id="man-materia" required placeholder="Materia (Ej. Lenguaje)"
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" id="man-enunciado" required placeholder="Enunciado de la pregunta"
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input type="text" id="man-a" required placeholder="Opción A"
+                  class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none" />
+                <input type="text" id="man-b" required placeholder="Opción B"
+                  class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none" />
+                <input type="text" id="man-c" required placeholder="Opción C"
+                  class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none" />
+                <input type="text" id="man-d" required placeholder="Opción D"
+                  class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm outline-none" />
+              </div>
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-2">
+                  <label class="text-xs font-bold text-slate-300">Respuesta Correcta:</label>
+                  <select id="man-correcta"
+                    class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-extrabold">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                  </select>
+                </div>
+                <button type="submit"
+                  class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition">
+                  Guardar Individual
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Banco de Preguntas -->
+        <div class="lg:col-span-6 glass-card rounded-3xl p-6 flex flex-col">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-700/80">
+            <div>
+              <h2 class="text-lg font-extrabold text-white">Banco de Preguntas en BD</h2>
+              <p class="text-xs text-slate-400">Se asignan repetidamente a los 68 casilleros del tablero.</p>
+            </div>
+            <span id="total-questions-badge"
+              class="px-3.5 py-1 rounded-full text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              0 preguntas
+            </span>
+          </div>
+          <div id="questions-bank-list" class="mt-4 flex-1 max-h-[700px] overflow-y-auto space-y-3 pr-1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VISTA 3: TABLERO OFICIAL DE PARCHÍS ==================== -->
+    <section id="view-juego" class="hidden fade-in grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- Tablero de Parchís -->
+      <div class="lg:col-span-8 flex flex-col items-center">
+        <div class="board-frame">
+          <div id="parchis-board" class="parchis-grid"></div>
+        </div>
+        <div
+          class="mt-3 px-4 py-2.5 rounded-2xl glass-card flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-200">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-400"></span> Salida
+            Amarillo (5)</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-600"></span> Salida Azul
+            (22)</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-600"></span> Salida Rojo
+            (39)</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-600"></span> Salida Verde
+            (56)</span>
+          <span>★ Casilla Segura</span>
+        </div>
+      </div>
+
+      <!-- Panel Derecho de Turno y Dado -->
+      <div class="lg:col-span-4 space-y-4">
+
+        <div id="turn-card" class="glass-card rounded-3xl border-2 border-slate-600 p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Turno Actual</span>
+            <span id="game-materia-badge"
+              class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Materia</span>
+          </div>
+
+          <div class="flex items-center gap-3.5">
+            <div id="turn-color-dot"
+              class="w-12 h-12 rounded-2xl border-2 border-white shadow-md bg-amber-400 flex items-center justify-center text-white font-black text-lg">
+              1
+            </div>
+            <div>
+              <h3 id="turn-player-name" class="font-extrabold text-lg text-white leading-tight">Jugador</h3>
+              <p id="turn-player-color" class="text-xs font-bold text-slate-400 mt-0.5">Color</p>
+            </div>
+          </div>
+
+          <!-- Cubilete y Dado -->
+          <div class="mt-5 p-4 rounded-2xl glass-subcard flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3.5">
+              <div id="dice-display" class="dice-cube">
+                <span
+                  class="col-start-2 row-start-2 flex items-center justify-center font-black text-xl text-slate-400">?</span>
+              </div>
+              <div>
+                <p id="game-instruction" class="text-xs font-extrabold text-white leading-snug">Tira el dado para jugar
+                </p>
+                <p class="text-[11px] text-slate-400 mt-1">Con <b>5</b> o <b>6</b> sacas ficha • <b>6</b> repite turno
+                </p>
+              </div>
+            </div>
+            <button id="btn-roll-dice" onclick="lanzarDado()"
+              class="px-4 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow-lg transition shrink-0">
+              Tirar Dado
+            </button>
+          </div>
+        </div>
+
+        <!-- Progreso de Jugadores -->
+        <div class="glass-card rounded-3xl p-5">
+          <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Estado de Fichas (4 por
+            Jugador)</h4>
+          <div id="players-status-list" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Bitácora -->
+        <div class="glass-card rounded-3xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Historial de Jugadas</h4>
+            <button onclick="abandonarPartida()"
+              class="text-xs font-bold text-rose-400 hover:underline">Terminar</button>
+          </div>
+          <div id="game-log" class="h-36 overflow-y-auto text-xs space-y-1.5 text-slate-300 pr-1"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL DE PREGUNTA ==================== -->
+  <div id="question-modal"
+    class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      class="fade-in bg-slate-900 rounded-3xl max-w-lg w-full shadow-2xl border border-slate-700 overflow-hidden text-white">
+      <div id="q-modal-header" class="px-6 py-5 bg-indigo-600 text-white">
+        <div class="flex items-center justify-between">
+          <span id="q-modal-badge"
+            class="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-white/20">
+            Pregunta de Casillero
+          </span>
+          <span id="q-modal-materia" class="text-xs font-bold bg-black/25 px-2.5 py-1 rounded-lg">Materia</span>
+        </div>
+        <h3 id="q-modal-subtitle" class="text-xs font-medium mt-2 opacity-95">
+          Si aciertas te quedas aquí; si fallas regresas a tu turno anterior.
+        </h3>
+      </div>
+
+      <div class="p-6">
+        <p id="q-modal-enunciado" class="text-base font-extrabold text-white mb-5 leading-snug"></p>
+        <div id="q-modal-options" class="space-y-2.5"></div>
+        <div id="q-modal-feedback" class="hidden mt-4 p-4 rounded-2xl text-sm font-bold"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL DE VICTORIA ==================== -->
+  <div id="victory-modal"
+    class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      class="fade-in bg-slate-900 rounded-3xl max-w-md w-full p-7 text-center shadow-2xl border border-slate-700 text-white">
+      <div
+        class="w-20 h-20 mx-auto rounded-3xl bg-amber-400 text-slate-950 flex items-center justify-center text-4xl shadow-lg mb-4">
+        🏆
+      </div>
+      <h2 class="text-2xl font-extrabold text-white">¡Ganador del Parchís!</h2>
+      <p id="victory-player-text" class="text-sm font-medium text-slate-300 mt-2 mb-6"></p>
+      <button onclick="cerrarVictoria()"
+        class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-lg">
+        Volver a la Sala
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. AUDIO SINTETIZADO (Web Audio API)
+    // =========================================================================
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('btn-sound').textContent = soundEnabled ? '🔊' : '🔇';
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'dice') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(260, now);
+          osc.frequency.exponentialRampToValueAtTime(520, now + 0.12);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+          osc.start(now); osc.stop(now + 0.14);
+        } else if (type === 'step') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(480, now);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+          osc.start(now); osc.stop(now + 0.07);
+        } else if (type === 'success') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.1);
+          osc.frequency.setValueAtTime(783.99, now + 0.2);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.34);
+          osc.start(now); osc.stop(now + 0.34);
+        } else if (type === 'error') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.linearRampToValueAtTime(135, now + 0.26);
+          gain.gain.setValueAtTime(0.13, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+          osc.start(now); osc.stop(now + 0.28);
+        } else if (type === 'capture') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(360, now);
+          osc.frequency.exponentialRampToValueAtTime(720, now + 0.24);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.26);
+          osc.start(now); osc.stop(now + 0.26);
+        }
+      } catch (e) { }
+    }
+
+    function launchConfetti() {
+      const colors = ['#facc15', '#3b82f6', '#f43f5e', '#10b981', '#818cf8'];
+      for (let i = 0; i < 65; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti rounded-sm';
+        el.style.left = `${Math.random() * 100}vw`;
+        el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        el.style.animationDuration = `${2 + Math.random() * 2}s`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+      }
+    }
+
+    // =========================================================================
+    // 2. BASE DE DATOS HÍBRIDA (API REST Express/PHP + SQLite y Fallback LocalStorage)
+    // =========================================================================
+    const API_BASE = '/api';
+    let isOfflineMode = false;
+
+    // Preguntas por defecto precargadas para GitHub Pages / Offline
+    const DEFAULT_PREGUNTAS = [
+      { id: 1, materia: 'Cultura General', enunciado: '¿Cuál es el planeta más grande del sistema solar?', opcion_a: 'Marte', opcion_b: 'Júpiter', opcion_c: 'Saturno', opcion_d: 'Neptuno', respuesta_correcta: 'B' },
+      { id: 2, materia: 'Matemáticas', enunciado: '¿Cuánto es 8 x 7?', opcion_a: '54', opcion_b: '64', opcion_c: '56', opcion_d: '48', respuesta_correcta: 'C' },
+      { id: 3, materia: 'Geografía', enunciado: '¿Cuál es el océano más grande de la Tierra?', opcion_a: 'Atlántico', opcion_b: 'Índico', opcion_c: 'Ártico', opcion_d: 'Pacífico', respuesta_correcta: 'D' },
+      { id: 4, materia: 'Ciencias Naturales', enunciado: '¿Qué órgano bombea la sangre en el cuerpo humano?', opcion_a: 'El corazón', opcion_b: 'El hígado', opcion_c: 'Los pulmones', opcion_d: 'El estómago', respuesta_correcta: 'A' },
+      { id: 5, materia: 'Geografía', enunciado: '¿Cuál es la capital de Ecuador?', opcion_a: 'Guayaquil', opcion_b: 'Cuenca', opcion_c: 'Quito', opcion_d: 'Ambato', respuesta_correcta: 'C' },
+      { id: 6, materia: 'Matemáticas', enunciado: '¿Cuántos lados tiene un hexágono?', opcion_a: 'Cinco', opcion_b: 'Seis', opcion_c: 'Siete', opcion_d: 'Ocho', respuesta_correcta: 'B' },
+      { id: 7, materia: 'Ciencias Naturales', enunciado: '¿Qué gas respiran las plantas para realizar la fotosíntesis?', opcion_a: 'Oxígeno', opcion_b: 'Nitrógeno', opcion_c: 'Dióxido de carbono', opcion_d: 'Hidrógeno', respuesta_correcta: 'C' },
+      { id: 8, materia: 'Historia y Geografía', enunciado: '¿En qué continente se encuentra Egipto?', opcion_a: 'Asia', opcion_b: 'Europa', opcion_c: 'África', opcion_d: 'Oceanía', respuesta_correcta: 'C' },
+      { id: 9, materia: 'Matemáticas', enunciado: '¿Cuál es el resultado de 144 dividido para 12?', opcion_a: '11', opcion_b: '12', opcion_c: '14', opcion_d: '10', respuesta_correcta: 'B' },
+      { id: 10, materia: 'Lenguaje y Literatura', enunciado: '¿Quién escribió la novela Don Quijote de la Mancha?', opcion_a: 'Gabriel García Márquez', opcion_b: 'Miguel de Cervantes', opcion_c: 'Pablo Neruda', opcion_d: 'Mario Vargas Llosa', respuesta_correcta: 'B' },
+      { id: 11, materia: 'Ciencias Naturales', enunciado: '¿Cuál es el símbolo químico del agua?', opcion_a: 'O2', opcion_b: 'CO2', opcion_c: 'H2O', opcion_d: 'NaCl', respuesta_correcta: 'C' },
+      { id: 12, materia: 'Matemáticas', enunciado: '¿Cuántos minutos tiene una hora y media?', opcion_a: '60 minutos', opcion_b: '75 minutos', opcion_c: '90 minutos', opcion_d: '120 minutos', respuesta_correcta: 'C' }
+    ];
+
+    const DEFAULT_DOCENTES = [
+      { id: 1, nombre: 'Prof. Carlos Morales', correo: 'docente@clase.edu', clave: 'docente123' }
+    ];
+
+    function getLocalStore(key, defaultValue = []) {
+      try {
+        const val = localStorage.getItem(`parchis_${key}`);
+        if (!val) {
+          localStorage.setItem(`parchis_${key}`, JSON.stringify(defaultValue));
+          return defaultValue;
+        }
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : defaultValue;
+      } catch (e) {
+        return defaultValue;
+      }
+    }
+
+    function setLocalStore(key, data) {
+      try {
+        localStorage.setItem(`parchis_${key}`, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Error al guardar en localStorage:', e);
+      }
+    }
+
+    async function initDatabase() {
+      // Precarga automática en localStorage para uso inmediato offline o en GitHub Pages
+      if (!localStorage.getItem('parchis_docentes')) setLocalStore('docentes', DEFAULT_DOCENTES);
+      if (!localStorage.getItem('parchis_preguntas')) setLocalStore('preguntas', DEFAULT_PREGUNTAS);
+      if (!localStorage.getItem('parchis_estudiantes')) setLocalStore('estudiantes', []);
+
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        if (!res.ok) {
+          isOfflineMode = true;
+        }
+      } catch (err) {
+        isOfflineMode = true;
+      }
+      return true;
+    }
+
+    async function dbGetAll(store) {
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch(`${API_BASE}/${store}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLocalStore(store, data);
+            return data;
+          }
+          isOfflineMode = true;
+        } catch (err) {
+          isOfflineMode = true;
+        }
+      }
+
+      // Fallback a localStorage sin errores
+      if (store === 'docentes') return getLocalStore('docentes', DEFAULT_DOCENTES);
+      if (store === 'preguntas') return getLocalStore('preguntas', DEFAULT_PREGUNTAS);
+      return getLocalStore(store, []);
+    }
+
+    async function dbAdd(store, item) {
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch(`${API_BASE}/${store}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const id = data.id || (data[store.slice(0, -1)] && data[store.slice(0, -1)].id) || data;
+            const list = getLocalStore(store, []);
+            list.push({ ...item, id });
+            setLocalStore(store, list);
+            return id;
+          }
+          if (res.status === 409 || res.status === 400) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Error al guardar en ${store}.`);
+          }
+          isOfflineMode = true;
+        } catch (err) {
+          if (err.message && (err.message.includes('Ya existe') || err.message.includes('obligatorio'))) {
+            throw err;
+          }
+          isOfflineMode = true;
+        }
+      }
+
+      // Fallback automático en localStorage
+      const list = getLocalStore(store, store === 'docentes' ? DEFAULT_DOCENTES : (store === 'preguntas' ? DEFAULT_PREGUNTAS : []));
+
+      if (store === 'estudiantes') {
+        if (list.some(s => s.cedula === item.cedula || s.correo.toLowerCase() === item.correo.toLowerCase())) {
+          throw new Error('Ya existe un estudiante registrado con esa cédula o correo.');
+        }
+      }
+      if (store === 'docentes') {
+        if (list.some(d => d.correo.toLowerCase() === item.correo.toLowerCase())) {
+          throw new Error('Ya existe un docente con este correo.');
+        }
+      }
+
+      const id = Date.now();
+      const newItem = { ...item, id };
+      list.push(newItem);
+      setLocalStore(store, list);
+      return id;
+    }
+
+    async function dbDelete(store, id) {
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch(`${API_BASE}/${store}/${id}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            const list = getLocalStore(store, []).filter(item => item.id !== id);
+            setLocalStore(store, list);
+            return true;
+          }
+          isOfflineMode = true;
+        } catch (err) {
+          isOfflineMode = true;
+        }
+      }
+
+      const list = getLocalStore(store, []).filter(item => item.id !== id);
+      setLocalStore(store, list);
+      return true;
+    }
+
+    // =========================================================================
+    // 3. VALIDACIÓN DE CÉDULA (10 DÍGITOS NUMÉRICOS EXACTOS)
+    // =========================================================================
+    function sanitizarCedulaInput(inputEl) {
+      inputEl.value = inputEl.value.replace(/\D/g, '').slice(0, 10);
+      document.getElementById('cedula-counter').textContent = `${inputEl.value.length} / 10`;
+    }
+
+    function validarCedula(cedula) {
+      return /^\d{10}$/.test(cedula);
+    }
+
+    // =========================================================================
+    // 4. CONSTANTES DEL PARCHÍS ESPAÑOL OFICIAL
+    // =========================================================================
+    let registeredStudents = [];
+    let questionsBank = [];
+    let lobbyPlayers = [];
+    let activeDocente = null;
+
+    const PLAYER_COLORS = [
+      { id: 'yellow', name: 'Amarillo', bg: 'bg-amber-400', border: 'border-amber-400', startCell: 5 },
+      { id: 'blue', name: 'Azul', bg: 'bg-blue-600', border: 'border-blue-500', startCell: 22 },
+      { id: 'red', name: 'Rojo', bg: 'bg-rose-600', border: 'border-rose-500', startCell: 39 },
+      { id: 'green', name: 'Verde', bg: 'bg-emerald-600', border: 'border-emerald-500', startCell: 56 }
+    ];
+
+    const SAFE_CELLS = new Set([5, 12, 17, 22, 29, 34, 39, 46, 51, 56, 63, 68]);
+
+    const TRACK_19X19 = [
+      [18, 10], [17, 10], [16, 10], [15, 10], [14, 10], [13, 10], [12, 10], [11, 10],
+      [10, 11], [10, 12], [10, 13], [10, 14], [10, 15], [10, 16], [10, 17], [10, 18],
+      [9, 18],
+      [8, 18], [8, 17], [8, 16], [8, 15], [8, 14], [8, 13], [8, 12], [8, 11],
+      [7, 10], [6, 10], [5, 10], [4, 10], [3, 10], [2, 10], [1, 10], [0, 10],
+      [0, 9],
+      [0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8], [6, 8], [7, 8],
+      [8, 7], [8, 6], [8, 5], [8, 4], [8, 3], [8, 2], [8, 1], [8, 0],
+      [9, 0],
+      [10, 0], [10, 1], [10, 2], [10, 3], [10, 4], [10, 5], [10, 6], [10, 7],
+      [11, 8], [12, 8], [13, 8], [14, 8], [15, 8], [16, 8], [17, 8], [18, 8],
+      [18, 9]
+    ];
+
+    const FINAL_LANES_19X19 = {
+      yellow: [[17, 9], [16, 9], [15, 9], [14, 9], [13, 9], [12, 9], [11, 9]],
+      blue: [[9, 17], [9, 16], [9, 15], [9, 14], [9, 13], [9, 12], [9, 11]],
+      red: [[1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [6, 9], [7, 9]],
+      green: [[9, 1], [9, 2], [9, 3], [9, 4], [9, 5], [9, 6], [9, 7]]
+    };
+
+    let gameState = {
+      active: false,
+      materia: 'TODAS',
+      boardQuestions: {},
+      materiaQuestions: [],
+      players: [],
+      turnIdx: 0,
+      consecutiveSixes: 0,
+      lastMovedTokenIdx: null,
+      diceValue: null,
+      phase: 'ROLL',
+      pendingMove: null
+    };
+
+    // =========================================================================
+    // 5. UTILIDADES UI Y NAVEGACIÓN
+    // =========================================================================
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const bg = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-rose-600' : 'bg-indigo-600';
+      const el = document.createElement('div');
+      el.className = `${bg} text-white px-4 py-3 rounded-xl shadow-xl text-xs font-bold fade-in`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 3600);
+    }
+
+    function switchView(viewName) {
+      ['lobby', 'docente', 'juego'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+      document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+      document.getElementById('nav-lobby').className = viewName === 'lobby'
+        ? 'px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition'
+        : 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition';
+      document.getElementById('nav-docente').className = viewName === 'docente'
+        ? 'px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition'
+        : 'px-4 py-2 rounded-xl text-sm font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition';
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // =========================================================================
+    // 6. CUENTA DE DOCENTE Y MÓDULO AIKEN
+    // =========================================================================
+    function autocompletarCuentaDocente() {
+      document.getElementById('doc-nombre').value = 'Prof. Carlos Morales';
+      document.getElementById('doc-correo').value = 'docente@clase.edu';
+      document.getElementById('doc-clave').value = 'docente123';
+    }
+
+    document.getElementById('form-docente-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById('doc-nombre').value.trim();
+      const correo = document.getElementById('doc-correo').value.trim().toLowerCase();
+      const clave = document.getElementById('doc-clave').value;
+
+      let loggedIn = false;
+
+      // 1. Intentar con backend API si está disponible
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch('/api/docentes/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, correo, clave })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            activeDocente = data.docente;
+            showToast(data.message || (data.isNew ? 'Cuenta docente registrada en base de datos.' : 'Sesión docente activa.'), 'success');
+            loggedIn = true;
+          } else if (res.status === 401) {
+            const data = await res.json().catch(() => ({}));
+            return showToast(data.error || 'Contraseña incorrecta para esta cuenta docente.', 'error');
+          } else {
+            isOfflineMode = true;
+          }
+        } catch (err) {
+          isOfflineMode = true;
+        }
+      }
+
+      // 2. Respaldo automático en localStorage (GitHub Pages / Modo estático)
+      if (!loggedIn) {
+        const docentes = getLocalStore('docentes', DEFAULT_DOCENTES);
+        const existente = docentes.find(d => d.correo.toLowerCase() === correo);
+
+        if (existente) {
+          if (existente.clave !== clave) {
+            return showToast('Contraseña incorrecta para esta cuenta docente.', 'error');
+          }
+          activeDocente = existente;
+          showToast('Sesión docente activa.', 'success');
+        } else {
+          const id = Date.now();
+          activeDocente = { id, nombre: nombre || 'Docente', correo, clave };
+          docentes.push(activeDocente);
+          setLocalStore('docentes', docentes);
+          showToast('Cuenta docente registrada.', 'success');
+        }
+      }
+
+      document.getElementById('doc-active-label').textContent = `${activeDocente.nombre} (${activeDocente.correo})`;
+      document.getElementById('docente-auth-box').classList.add('hidden');
+      document.getElementById('docente-panel-content').classList.remove('hidden');
+    });
+
+    function cerrarSesionDocente() {
+      activeDocente = null;
+      document.getElementById('docente-panel-content').classList.add('hidden');
+      document.getElementById('docente-auth-box').classList.remove('hidden');
+    }
+
+    function parseAikenText(rawText, materia) {
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      const parsed = [];
+      let i = 0;
+      while (i < lines.length) {
+        if (
+          lines[i + 1] && /^A[.)]\s*/i.test(lines[i + 1]) &&
+          lines[i + 2] && /^B[.)]\s*/i.test(lines[i + 2]) &&
+          lines[i + 3] && /^C[.)]\s*/i.test(lines[i + 3]) &&
+          lines[i + 4] && /^D[.)]\s*/i.test(lines[i + 4]) &&
+          lines[i + 5] && /^ANSWER:\s*[A-D]$/i.test(lines[i + 5])
+        ) {
+          parsed.push({
+            materia: materia.trim() || 'General',
+            enunciado: lines[i],
+            opcion_a: lines[i + 1].replace(/^A[.)]\s*/i, '').trim(),
+            opcion_b: lines[i + 2].replace(/^B[.)]\s*/i, '').trim(),
+            opcion_c: lines[i + 3].replace(/^C[.)]\s*/i, '').trim(),
+            opcion_d: lines[i + 4].replace(/^D[.)]\s*/i, '').trim(),
+            respuesta_correcta: lines[i + 5].replace(/^ANSWER:\s*/i, '').trim().toUpperCase()
+          });
+          i += 6;
+        } else {
+          i += 1;
+        }
+      }
+      return parsed;
+    }
+
+    function cargarEjemploAiken() {
+      document.getElementById('aiken-materia').value = 'Cultura General';
+      document.getElementById('aiken-textarea').value =
+        `¿Cuál es el planeta más grande del sistema solar?
+A. Marte
+B. Júpiter
+C. Saturno
+D. Neptuno
+ANSWER: B
+
+¿Cuánto es 8 x 7?
+A. 54
+B. 64
+C. 56
+D. 48
+ANSWER: C
+
+¿Cuál es el océano más grande de la Tierra?
+A. Atlántico
+B. Índico
+C. Ártico
+D. Pacífico
+ANSWER: D
+
+¿Qué órgano bombea la sangre en el cuerpo humano?
+A. El corazón
+B. El hígado
+C. Los pulmones
+D. El estómago
+ANSWER: A
+
+¿Cuál es la capital de Ecuador?
+A. Guayaquil
+B. Cuenca
+C. Quito
+D. Ambato
+ANSWER: C
+
+¿Cuántos lados tiene un hexágono?
+A. Cinco
+B. Seis
+C. Siete
+D. Ocho
+ANSWER: B
+
+¿Qué gas respiran las plantas para realizar la fotosíntesis?
+A. Oxígeno
+B. Nitrógeno
+C. Dióxido de carbono
+D. Hidrógeno
+ANSWER: C
+
+¿En qué continente se encuentra Egipto?
+A. Asia
+B. Europa
+C. África
+D. Oceanía
+ANSWER: C
+
+¿Cuál es el resultado de 144 dividido para 12?
+A. 11
+B. 12
+C. 14
+D. 10
+ANSWER: B
+
+¿Quién escribió la novela Don Quijote de la Mancha?
+A. Gabriel García Márquez
+B. Miguel de Cervantes
+C. Pablo Neruda
+D. Mario Vargas Llosa
+ANSWER: B
+
+¿Cuál es el símbolo químico del agua?
+A. O2
+B. CO2
+C. H2O
+D. NaCl
+ANSWER: C
+
+¿Cuántos minutos tiene una hora y media?
+A. 60 minutos
+B. 75 minutos
+C. 90 minutos
+D. 120 minutos
+ANSWER: C`;
+      previsualizarAiken();
+    }
+
+    function leerArchivoAiken(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('aiken-textarea').value = e.target.result;
+        previsualizarAiken();
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function previsualizarAiken() {
+      const raw = document.getElementById('aiken-textarea').value;
+      const mat = document.getElementById('aiken-materia').value || 'General';
+      const detected = parseAikenText(raw, mat);
+      document.getElementById('aiken-preview-count').textContent = `${detected.length} preguntas válidas detectadas`;
+    }
+
+    async function guardarPreguntasAiken() {
+      const materia = document.getElementById('aiken-materia').value.trim();
+      const raw = document.getElementById('aiken-textarea').value;
+      if (!materia) return showToast('Escribe el nombre de la materia.', 'error');
+      const detected = parseAikenText(raw, materia);
+      if (detected.length === 0) return showToast('No se detectaron preguntas válidas en formato Aiken.', 'error');
+
+      let savedBulk = false;
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch('/api/preguntas/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(detected)
+          });
+          if (res.ok) {
+            savedBulk = true;
+          } else {
+            isOfflineMode = true;
+          }
+        } catch (err) {
+          isOfflineMode = true;
+        }
+      }
+
+      if (!savedBulk) {
+        // Guardar directamente en localStorage
+        const list = getLocalStore('preguntas', DEFAULT_PREGUNTAS);
+        let baseId = Date.now();
+        detected.forEach((q, idx) => {
+          list.push({ ...q, id: baseId + idx });
+        });
+        setLocalStore('preguntas', list);
+      }
+
+      document.getElementById('aiken-textarea').value = '';
+      document.getElementById('aiken-file').value = '';
+      previsualizarAiken();
+      await refreshData();
+      showToast(`Se guardaron ${detected.length} preguntas en "${materia}".`, 'success');
+    }
+
+    document.getElementById('form-pregunta-manual').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await dbAdd('preguntas', {
+          materia: document.getElementById('man-materia').value.trim(),
+          enunciado: document.getElementById('man-enunciado').value.trim(),
+          opcion_a: document.getElementById('man-a').value.trim(),
+          opcion_b: document.getElementById('man-b').value.trim(),
+          opcion_c: document.getElementById('man-c').value.trim(),
+          opcion_d: document.getElementById('man-d').value.trim(),
+          respuesta_correcta: document.getElementById('man-correcta').value
+        });
+        e.target.reset();
+        await refreshData();
+        showToast('Pregunta guardada en base de datos.', 'success');
+      } catch (err) {
+        showToast('Error al guardar pregunta: ' + err.message, 'error');
+      }
+    });
+
+    async function eliminarPregunta(id) {
+      try {
+        await dbDelete('preguntas', id);
+        await refreshData();
+        showToast('Pregunta eliminada de base de datos.', 'info');
+      } catch (err) {
+        showToast('Error al eliminar pregunta: ' + err.message, 'error');
+      }
+    }
+
+    function renderQuestionsBank() {
+      const listEl = document.getElementById('questions-bank-list');
+      document.getElementById('total-questions-badge').textContent = `${questionsBank.length} preguntas`;
+      if (questionsBank.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-8">No hay preguntas cargadas aún.</p>`;
+        return;
+      }
+      listEl.innerHTML = questionsBank.map(q => `
+        <div class="p-3.5 rounded-2xl glass-subcard text-xs">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <span class="inline-block px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-extrabold text-[10px] mb-1">${escapeHtml(q.materia)}</span>
+              <p class="font-bold text-white">${escapeHtml(q.enunciado)}</p>
+            </div>
+            <button onclick="eliminarPregunta(${q.id})" class="text-rose-400 hover:text-rose-300 font-bold px-2">✕</button>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 mt-2 text-[11px] text-slate-400">
+            <span class="${q.respuesta_correcta === 'A' ? 'font-extrabold text-emerald-400' : ''}">A. ${escapeHtml(q.opcion_a)}</span>
+            <span class="${q.respuesta_correcta === 'B' ? 'font-extrabold text-emerald-400' : ''}">B. ${escapeHtml(q.opcion_b)}</span>
+            <span class="${q.respuesta_correcta === 'C' ? 'font-extrabold text-emerald-400' : ''}">C. ${escapeHtml(q.opcion_c)}</span>
+            <span class="${q.respuesta_correcta === 'D' ? 'font-extrabold text-emerald-400' : ''}">D. ${escapeHtml(q.opcion_d)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateMateriaSelector() {
+      const select = document.getElementById('lobby-materia-select');
+      const currentVal = select.value;
+      const materias = [...new Set(questionsBank.map(q => q.materia))];
+      select.innerHTML = `<option value="TODAS">Todas las materias cargadas (${questionsBank.length})</option>` +
+        materias.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)} (${questionsBank.filter(q => q.materia === m).length} preguntas)</option>`).join('');
+      if ([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
+      renderLobby();
+    }
+
+    // =========================================================================
+    // 7. REGISTRO DE ESTUDIANTES Y SALA
+    // =========================================================================
+    document.getElementById('form-registro-estudiante').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nombres = document.getElementById('est-nombres').value.trim();
+      const apellidos = document.getElementById('est-apellidos').value.trim();
+      const cedula = document.getElementById('est-cedula').value.trim();
+      const correo = document.getElementById('est-correo').value.trim().toLowerCase();
+
+      if (!validarCedula(cedula)) {
+        return showToast('El número de cédula debe tener exactamente 10 dígitos numéricos.', 'error');
+      }
+
+      if (registeredStudents.some(s => s.cedula === cedula || s.correo === correo)) {
+        return showToast('Ya existe un estudiante registrado con esa cédula o correo.', 'error');
+      }
+
+      try {
+        const id = await dbAdd('estudiantes', { nombres, apellidos, cedula, correo });
+        e.target.reset();
+        document.getElementById('cedula-counter').textContent = '0 / 10';
+        await refreshData();
+        const nuevo = registeredStudents.find(s => s.id === id || s.cedula === cedula);
+        if (nuevo) agregarJugadorASala(nuevo);
+        showToast('Estudiante guardado en base de datos.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    async function ingresarEstudianteExistente() {
+      const ident = document.getElementById('login-identificador').value.trim().toLowerCase();
+      if (!ident) return;
+
+      let found = registeredStudents.find(s => s.cedula.toLowerCase() === ident || s.correo === ident);
+
+      if (!found && !isOfflineMode) {
+        try {
+          const res = await fetch('/api/estudiantes/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identificador: ident })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            found = data.estudiante;
+            await refreshData();
+          }
+        } catch (err) {
+          // Si falla conexión, continúa a buscar en localStorage
+        }
+      }
+
+      if (!found) {
+        const localEsts = getLocalStore('estudiantes', []);
+        found = localEsts.find(s => s.cedula.toLowerCase() === ident || s.correo.toLowerCase() === ident);
+      }
+
+      if (!found) return showToast('Estudiante no encontrado. Regístralo primero.', 'error');
+      document.getElementById('login-identificador').value = '';
+      agregarJugadorASala(found);
+    }
+
+    function agregarJugadorASala(student) {
+      if (lobbyPlayers.some(p => p.id === student.id)) return showToast('Este estudiante ya está en la partida.', 'info');
+      if (lobbyPlayers.length >= 4) return showToast('Máximo 4 estudiantes por partida.', 'error');
+      lobbyPlayers.push(student);
+      renderLobby();
+    }
+
+    function quitarJugadorDeSala(id) {
+      lobbyPlayers = lobbyPlayers.filter(p => p.id !== id);
+      renderLobby();
+    }
+
+    function renderLobby() {
+      document.getElementById('db-students-count').textContent = `${registeredStudents.length} registrados`;
+      document.getElementById('db-students-list').innerHTML = registeredStudents.length === 0
+        ? `<p class="text-xs text-slate-400">No hay estudiantes registrados aún.</p>`
+        : registeredStudents.map(s => `
+          <div class="flex items-center justify-between p-2.5 rounded-xl glass-subcard text-xs">
+            <div>
+              <p class="font-bold text-white">${escapeHtml(s.nombres)} ${escapeHtml(s.apellidos)}</p>
+              <p class="text-[11px] text-slate-400">CI: ${escapeHtml(s.cedula)} • ${escapeHtml(s.correo)}</p>
+            </div>
+            <button onclick='agregarJugadorASala(${JSON.stringify(s)})'
+              class="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 font-bold">
+              + Unir
+            </button>
+          </div>
+        `).join('');
+
+      document.getElementById('lobby-count-badge').textContent = `${lobbyPlayers.length} / 4 Jugadores`;
+      document.getElementById('lobby-slots').innerHTML = PLAYER_COLORS.map((c, idx) => {
+        const player = lobbyPlayers[idx];
+        if (player) {
+          return `
+            <div class="p-4 rounded-2xl border-2 ${c.border} bg-slate-900/80 flex items-center justify-between shadow-md">
+              <div class="flex items-center gap-3">
+                <span class="w-9 h-9 rounded-xl ${c.bg} text-white font-black flex items-center justify-center text-sm shadow">${idx + 1}</span>
+                <div>
+                  <p class="font-extrabold text-sm text-white">${escapeHtml(player.nombres)} ${escapeHtml(player.apellidos)}</p>
+                  <p class="text-xs text-slate-400">Ficha ${c.name} • CI: ${escapeHtml(player.cedula)}</p>
+                </div>
+              </div>
+              <button onclick="quitarJugadorDeSala(${player.id})" class="text-xs font-bold text-rose-400 hover:underline">Quitar</button>
+            </div>
+          `;
+        }
+        return `
+          <div class="p-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-xl bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-sm">${idx + 1}</span>
+            <div>
+              <p class="text-xs font-bold text-slate-400">Puesto disponible (${c.name})</p>
+              <p class="text-[11px] text-slate-500">Registra o une un estudiante</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const selectedMat = document.getElementById('lobby-materia-select').value;
+      const qCount = selectedMat === 'TODAS' ? questionsBank.length : questionsBank.filter(q => q.materia === selectedMat).length;
+      document.getElementById('lobby-questions-info').textContent = qCount > 0
+        ? `Hay ${qCount} pregunta(s) disponibles. Se repetirán cíclicamente en los 68 casilleros.`
+        : 'Carga preguntas en el Panel Docente antes de comenzar.';
+
+      const btnStart = document.getElementById('btn-start-game');
+      const valMsg = document.getElementById('lobby-validation-msg');
+      if (qCount === 0) {
+        btnStart.disabled = true;
+        valMsg.textContent = 'Carga preguntas en el Panel Docente antes de iniciar.';
+        valMsg.className = 'text-xs font-bold text-rose-400';
+      } else if (lobbyPlayers.length < 2) {
+        btnStart.disabled = true;
+        valMsg.textContent = 'Agrega al menos 2 estudiantes registrados para iniciar.';
+        valMsg.className = 'text-xs font-bold text-rose-400';
+      } else {
+        btnStart.disabled = false;
+        valMsg.textContent = `¡Listo! Partida justa entre ${lobbyPlayers.length} estudiantes.`;
+        valMsg.className = 'text-xs font-extrabold text-emerald-400';
+      }
+    }
+
+    document.getElementById('lobby-materia-select').addEventListener('change', renderLobby);
+
+    // =========================================================================
+    // 8. MOTOR AUTÉNTICO Y JUSTO DEL PARCHÍS ESPAÑOL
+    // =========================================================================
+    function iniciarPartida() {
+      const selectedMat = document.getElementById('lobby-materia-select').value;
+      const filteredQ = selectedMat === 'TODAS' ? [...questionsBank] : questionsBank.filter(q => q.materia === selectedMat);
+      if (lobbyPlayers.length < 2 || filteredQ.length === 0) return;
+
+      const shuffled = filteredQ.sort(() => Math.random() - 0.5);
+      const boardQuestions = {};
+      for (let cell = 1; cell <= 68; cell++) {
+        boardQuestions[cell] = shuffled[(cell - 1) % shuffled.length];
+      }
+
+      gameState = {
+        active: true,
+        materia: selectedMat === 'TODAS' ? 'Todas las materias' : selectedMat,
+        boardQuestions,
+        materiaQuestions: filteredQ,
+        players: lobbyPlayers.map((student, idx) => ({
+          student,
+          color: PLAYER_COLORS[idx],
+          tokens: [0, 1, 2, 3].map(id => ({ id, state: 'home', pos: 0, steps: 0 }))
+        })),
+        turnIdx: 0,
+        consecutiveSixes: 0,
+        lastMovedTokenIdx: null,
+        diceValue: null,
+        phase: 'ROLL',
+        pendingMove: null
+      };
+
+      document.getElementById('nav-juego').classList.remove('hidden');
+      document.getElementById('game-materia-badge').textContent = gameState.materia;
+      document.getElementById('game-log').innerHTML = '';
+      renderDiceFace(null);
+      addGameLog(`Partida iniciada con ${gameState.players.length} estudiantes.`);
+      switchView('juego');
+      renderGameUI();
+    }
+
+    function renderDiceFace(val) {
+      const el = document.getElementById('dice-display');
+      if (!val) {
+        el.innerHTML = `<span class="col-start-2 row-start-2 flex items-center justify-center font-black text-xl text-slate-400">?</span>`;
+        return;
+      }
+      const pips = {
+        1: [[2, 2]],
+        2: [[1, 3], [3, 1]],
+        3: [[1, 3], [2, 2], [3, 1]],
+        4: [[1, 1], [1, 3], [3, 1], [3, 3]],
+        5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
+        6: [[1, 1], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]]
+      };
+      el.innerHTML = (pips[val] || []).map(([r, c]) =>
+        `<span class="pip ${(val === 5 || val === 6) ? 'pip-highlight' : ''}" style="grid-row:${r};grid-column:${c};"></span>`
+      ).join('');
+    }
+
+    function addGameLog(msg) {
+      const logEl = document.getElementById('game-log');
+      const p = document.createElement('p');
+      p.className = 'border-b border-slate-800 pb-1.5';
+      p.textContent = `• ${msg}`;
+      logEl.prepend(p);
+    }
+
+    function lanzarDado() {
+      if (gameState.phase !== 'ROLL') return;
+      const diceEl = document.getElementById('dice-display');
+      document.getElementById('btn-roll-dice').disabled = true;
+      diceEl.classList.add('dice-spin');
+      playSound('dice');
+
+      const anim = setInterval(() => renderDiceFace(Math.floor(Math.random() * 6) + 1), 70);
+
+      setTimeout(() => {
+        clearInterval(anim);
+        diceEl.classList.remove('dice-spin');
+        const roll = Math.floor(Math.random() * 6) + 1;
+        gameState.diceValue = roll;
+        renderDiceFace(roll);
+
+        const current = gameState.players[gameState.turnIdx];
+        addGameLog(`${current.student.nombres} (${current.color.name}) sacó ${roll}.`);
+
+        // Regla oficial: Tercer 6 consecutivo devuelve la última ficha movida a casa
+        if (roll === 6) {
+          gameState.consecutiveSixes += 1;
+          if (gameState.consecutiveSixes === 3) {
+            if (gameState.lastMovedTokenIdx !== null) {
+              const t = current.tokens[gameState.lastMovedTokenIdx];
+              if (t && t.state !== 'goal') {
+                t.state = 'home';
+                t.pos = 0;
+                t.steps = 0;
+              }
+            }
+            playSound('error');
+            addGameLog(`¡Tres 6 seguidos! La última ficha de ${current.student.nombres} vuelve a casa.`);
+            document.getElementById('game-instruction').textContent = '¡Tres 6 seguidos! Ficha a casa y pasa el turno.';
+            renderGameUI();
+            setTimeout(() => nextTurn(true), 1300);
+            return;
+          }
+        } else {
+          gameState.consecutiveSixes = 0;
+        }
+
+        const validTokens = getValidTokensForMove(gameState.turnIdx, roll);
+        if (validTokens.length === 0) {
+          document.getElementById('game-instruction').textContent = `Sacaste ${roll}, sin movimientos posibles.`;
+          addGameLog(`Sin movimientos posibles para ${current.student.nombres}.`);
+          setTimeout(() => nextTurn(roll !== 6), 1200);
+        } else {
+          gameState.phase = 'SELECT_TOKEN';
+          document.getElementById('game-instruction').textContent = `Sacaste ${roll}. Elige cualquiera de tus fichas iluminadas.`;
+          renderGameUI();
+        }
+      }, 360);
+    }
+
+    // Regla justa y fiel al Parchís español:
+    // - Puedes sacar ficha de casa con 5 o con 6 (si tu salida no tiene ya 2 fichas).
+    // - Si tienes fichas en juego, también puedes moverlas con ese 5 o 6 libremente.
+    // - Si tienes 2 fichas propias juntas (barrera) y sacas 6, es obligatorio abrir la barrera.
+    // - Ningún jugador puede atravesar una barrera formada por 2 fichas del mismo color.
+    function isBarrierAt(trackPos) {
+      return gameState.players.some(p =>
+        p.tokens.filter(t => t.state === 'track' && t.pos === trackPos).length >= 2
+      );
+    }
+
+    function pathBlockedByBarrier(playerIdx, currentSteps, roll) {
+      const startCell = gameState.players[playerIdx].color.startCell;
+      for (let s = 1; s <= roll; s++) {
+        const stepCheck = currentSteps + s;
+        if (stepCheck <= 63) {
+          const trackPos = ((startCell - 1 + stepCheck) % 68) + 1;
+          if (isBarrierAt(trackPos)) return true;
+        }
+      }
+      return false;
+    }
+
+    function getValidTokensForMove(playerIdx, roll) {
+      const player = gameState.players[playerIdx];
+      const tokensOnStart = player.tokens.filter(t => t.state === 'track' && t.pos === player.color.startCell).length;
+
+      // Verificar si el jugador tiene una barrera propia y sacó 6 (obligación reglamentaria de abrir barrera)
+      if (roll === 6) {
+        const barrierTokens = [];
+        player.tokens.forEach((t, idx) => {
+          if (t.state === 'track') {
+            const sameCellCount = player.tokens.filter(other => other.state === 'track' && other.pos === t.pos).length;
+            if (sameCellCount >= 2 && !pathBlockedByBarrier(playerIdx, t.steps, roll)) {
+              barrierTokens.push(idx);
+            }
+          }
+        });
+        if (barrierTokens.length > 0) return barrierTokens;
+      }
+
+      const valid = [];
+      player.tokens.forEach((token, idx) => {
+        if (token.state === 'goal') return;
+
+        // Sacar ficha de casa con 5 o con 6 (si hay espacio en la salida)
+        if (token.state === 'home') {
+          if ((roll === 5 || roll === 6) && tokensOnStart < 2) {
+            valid.push(idx);
+          }
+          return;
+        }
+
+        // Mover ficha que ya está en el tablero
+        if (!pathBlockedByBarrier(playerIdx, token.steps, roll)) {
+          const targetSteps = token.steps + roll;
+          if (targetSteps >= 71) {
+            // Regla corregida: Llegada a la Meta SIN Rebote
+            valid.push(idx);
+          } else if (targetSteps <= 63) {
+            const destPos = ((player.color.startCell - 1 + targetSteps) % 68) + 1;
+            const totalAtDest = gameState.players.reduce((acc, p) =>
+              acc + p.tokens.filter(t => t.state === 'track' && t.pos === destPos).length, 0);
+            if (totalAtDest < 2) valid.push(idx);
+          } else {
+            valid.push(idx);
+          }
+        }
+      });
+
+      return valid;
+    }
+
+    async function seleccionarFicha(pIdx, tokenIdx) {
+      if (gameState.phase !== 'SELECT_TOKEN' || pIdx !== gameState.turnIdx) return;
+      const valid = getValidTokensForMove(gameState.turnIdx, gameState.diceValue);
+      if (!valid.includes(tokenIdx)) return;
+
+      gameState.phase = 'ANIMATING';
+      gameState.lastMovedTokenIdx = tokenIdx;
+      const player = gameState.players[pIdx];
+      const token = player.tokens[tokenIdx];
+      const roll = gameState.diceValue;
+
+      const prevState = token.state;
+      const prevPos = token.pos;
+      const prevSteps = token.steps;
+
+      if (token.state === 'home' && (roll === 5 || roll === 6)) {
+        token.state = 'track';
+        token.steps = 0;
+        token.pos = player.color.startCell;
+        playSound('step');
+        renderGameUI();
+      } else {
+        let currentSteps = token.steps;
+        for (let s = 0; s < roll; s++) {
+          await new Promise(r => setTimeout(r, 140));
+          currentSteps += 1;
+          if (currentSteps >= 71) {
+            // Regla corregida: entra directamente a la meta SIN rebote y se queda fija
+            token.steps = 71;
+            token.state = 'goal';
+            token.pos = 8;
+            playSound('step');
+            renderGameUI();
+            break;
+          } else if (currentSteps > 63) {
+            token.steps = currentSteps;
+            token.state = 'final';
+            token.pos = currentSteps - 63;
+          } else {
+            token.steps = currentSteps;
+            token.state = 'track';
+            token.pos = ((player.color.startCell - 1 + currentSteps) % 68) + 1;
+          }
+          playSound('step');
+          renderGameUI();
+        }
+      }
+
+      if (token.state === 'goal') {
+        playSound('success');
+        addGameLog(`¡${player.student.nombres} llevó una ficha a la META!`);
+        if (checkVictory(pIdx)) return;
+        nextTurn(roll !== 6);
+        return;
+      }
+
+      // Verificar si cae sobre ficha rival fuera de casilla segura
+      let capturedTarget = null;
+      if (token.state === 'track' && !SAFE_CELLS.has(token.pos)) {
+        for (let rIdx = 0; rIdx < gameState.players.length; rIdx++) {
+          if (rIdx === pIdx) continue;
+          const rival = gameState.players[rIdx];
+          const rivalTokenIdx = rival.tokens.findIndex(t => t.state === 'track' && t.pos === token.pos);
+          if (rivalTokenIdx !== -1) {
+            capturedTarget = { playerIdx: rIdx, tokenIdx: rivalTokenIdx };
+            break;
+          }
+        }
+      }
+
+      const question = token.state === 'track'
+        ? gameState.boardQuestions[token.pos]
+        : gameState.materiaQuestions[Math.floor(Math.random() * gameState.materiaQuestions.length)];
+
+      gameState.phase = 'QUESTION';
+      gameState.pendingMove = {
+        playerIdx: pIdx,
+        tokenIdx,
+        prevState,
+        prevPos,
+        prevSteps,
+        newState: token.state,
+        newPos: token.pos,
+        newSteps: token.steps,
+        capturedTarget,
+        rolledSix: roll === 6
+      };
+
+      abrirModalPregunta(question, Boolean(capturedTarget));
+    }
+
+    // =========================================================================
+    // 9. MODAL DE PREGUNTA (ACIERTO / FALLO CON RETROCESO / CAPTURA)
+    // =========================================================================
+    function abrirModalPregunta(question, isCapture) {
+      const modal = document.getElementById('question-modal');
+      const header = document.getElementById('q-modal-header');
+      const badge = document.getElementById('q-modal-badge');
+      const subtitle = document.getElementById('q-modal-subtitle');
+      const feedback = document.getElementById('q-modal-feedback');
+
+      feedback.classList.add('hidden');
+      document.getElementById('q-modal-materia').textContent = question.materia;
+      document.getElementById('q-modal-enunciado').textContent = question.enunciado;
+
+      if (isCapture) {
+        header.className = 'px-6 py-5 bg-rose-600 text-white';
+        badge.textContent = '⚔️ Pregunta para Comer Ficha';
+        subtitle.textContent = 'Responde bien para comerte la ficha rival (+20 casillas). Si fallas regresas al inicio.';
+      } else {
+        header.className = 'px-6 py-5 bg-indigo-600 text-white';
+        badge.textContent = gameState.pendingMove.newState === 'track'
+          ? `Pregunta Casillero #${gameState.pendingMove.newPos}`
+          : `Pregunta Pasillo Final`;
+        subtitle.textContent = 'Si aciertas te quedas en este casillero; si fallas regresas a tu turno anterior.';
+      }
+
+      const options = [
+        { key: 'A', text: question.opcion_a },
+        { key: 'B', text: question.opcion_b },
+        { key: 'C', text: question.opcion_c },
+        { key: 'D', text: question.opcion_d }
+      ];
+
+      document.getElementById('q-modal-options').innerHTML = options.map(opt => `
+        <button type="button" onclick="responderPregunta('${opt.key}', '${question.respuesta_correcta}')"
+          class="q-opt-btn w-full text-left p-3.5 rounded-2xl border border-slate-700 bg-slate-800/80 hover:border-indigo-500 hover:bg-indigo-600/20 text-sm font-semibold text-white transition flex items-center gap-3">
+          <span class="w-8 h-8 rounded-xl bg-slate-700 font-extrabold text-xs flex items-center justify-center text-white shrink-0">${opt.key}</span>
+          <span>${escapeHtml(opt.text)}</span>
+        </button>
+      `).join('');
+
+      modal.classList.remove('hidden');
+    }
+
+    function responderPregunta(selectedKey, correctKey) {
+      document.querySelectorAll('.q-opt-btn').forEach(b => b.disabled = true);
+
+      const move = gameState.pendingMove;
+      const player = gameState.players[move.playerIdx];
+      const token = player.tokens[move.tokenIdx];
+      const feedback = document.getElementById('q-modal-feedback');
+      const isCorrect = selectedKey === correctKey;
+
+      feedback.classList.remove('hidden');
+
+      if (isCorrect) {
+        if (move.capturedTarget) {
+          playSound('capture');
+          const rival = gameState.players[move.capturedTarget.playerIdx];
+          const rivalToken = rival.tokens[move.capturedTarget.tokenIdx];
+          rivalToken.state = 'home';
+          rivalToken.pos = 0;
+          rivalToken.steps = 0;
+
+          const bonusSteps = Math.min(71, token.steps + 20);
+          token.steps = bonusSteps;
+          if (bonusSteps === 71) { token.state = 'goal'; token.pos = 8; }
+          else if (bonusSteps > 63) { token.state = 'final'; token.pos = bonusSteps - 63; }
+          else { token.state = 'track'; token.pos = ((player.color.startCell - 1 + bonusSteps) % 68) + 1; }
+
+          feedback.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300';
+          feedback.textContent = `¡Correcto! Comiste la ficha de ${rival.student.nombres} y avanzas 20 casillas extra.`;
+          addGameLog(`¡${player.student.nombres} se comió a ${rival.student.nombres} (+20 casillas)!`);
+        } else {
+          playSound('success');
+          feedback.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300';
+          feedback.textContent = '¡Correcto! Conservas este casillero.';
+          addGameLog(`${player.student.nombres} acertó y aseguró su casillero.`);
+        }
+      } else {
+        playSound('error');
+        token.state = move.prevState;
+        token.pos = move.prevPos;
+        token.steps = move.prevSteps;
+
+        feedback.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-rose-500/20 border border-rose-500/40 text-rose-300';
+        feedback.textContent = `Incorrecto (era ${correctKey}). Regresas a tu posición anterior.`;
+        addGameLog(`${player.student.nombres} falló y regresó a su turno anterior.`);
+      }
+
+      renderGameUI();
+
+      setTimeout(() => {
+        document.getElementById('question-modal').classList.add('hidden');
+        if (checkVictory(move.playerIdx)) return;
+        // Si acertó y sacó 6, repite turno. Si falló, pasa el turno al siguiente jugador.
+        if (isCorrect && move.rolledSix) {
+          nextTurn(false);
+        } else {
+          nextTurn(true);
+        }
+      }, 1700);
+    }
+
+    function nextTurn(advancePlayer = true) {
+      if (advancePlayer) {
+        gameState.turnIdx = (gameState.turnIdx + 1) % gameState.players.length;
+        gameState.consecutiveSixes = 0;
+        gameState.lastMovedTokenIdx = null;
+      } else {
+        addGameLog(`¡${gameState.players[gameState.turnIdx].student.nombres} repite turno por sacar 6!`);
+      }
+      gameState.diceValue = null;
+      gameState.phase = 'ROLL';
+      gameState.pendingMove = null;
+      renderDiceFace(null);
+      document.getElementById('game-instruction').textContent = advancePlayer
+        ? 'Tira el dado para jugar'
+        : '¡Sacaste 6! Vuelve a tirar el dado';
+      renderGameUI();
+    }
+
+    function checkVictory(playerIdx) {
+      const player = gameState.players[playerIdx];
+      if (player.tokens.every(t => t.state === 'goal')) {
+        gameState.phase = 'FINISHED';
+        playSound('success');
+        launchConfetti();
+        document.getElementById('victory-player-text').textContent =
+          `${player.student.nombres} ${player.student.apellidos} (${player.color.name}) llevó sus 4 fichas a la meta.`;
+        document.getElementById('victory-modal').classList.remove('hidden');
+        return true;
+      }
+      return false;
+    }
+
+    function cerrarVictoria() {
+      document.getElementById('victory-modal').classList.add('hidden');
+      abandonarPartida();
+    }
+
+    function abandonarPartida() {
+      gameState.active = false;
+      document.getElementById('nav-juego').classList.add('hidden');
+      switchView('lobby');
+    }
+
+    // =========================================================================
+    // 10. RENDERIZADO DEL TABLERO OFICIAL (19x19 CON CASAS Y META SVG)
+    // =========================================================================
+    function renderGameUI() {
+      const currentPlayer = gameState.players[gameState.turnIdx];
+      document.getElementById('turn-player-name').textContent =
+        `${currentPlayer.student.nombres} ${currentPlayer.student.apellidos}`;
+      document.getElementById('turn-player-color').textContent = `Color ${currentPlayer.color.name}`;
+
+      const dot = document.getElementById('turn-color-dot');
+      dot.className = `w-12 h-12 rounded-2xl border-2 border-white shadow-md ${currentPlayer.color.bg} flex items-center justify-center text-white font-black text-lg`;
+      dot.textContent = gameState.turnIdx + 1;
+
+      document.getElementById('turn-card').className =
+        `glass-card rounded-3xl border-2 ${currentPlayer.color.border} p-5 transition-all`;
+
+      document.getElementById('btn-roll-dice').disabled = gameState.phase !== 'ROLL';
+
+      document.getElementById('players-status-list').innerHTML = gameState.players.map((p, idx) => {
+        const homeCount = p.tokens.filter(t => t.state === 'home').length;
+        const goalCount = p.tokens.filter(t => t.state === 'goal').length;
+        const activeCount = 4 - homeCount - goalCount;
+        return `
+          <div class="p-3 rounded-2xl border ${idx === gameState.turnIdx ? 'border-indigo-400 bg-slate-800/90 shadow-md' : 'border-slate-700/70 bg-slate-900/50'} flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5">
+              <span class="w-4 h-4 rounded-full ${p.color.bg} inline-block shadow-sm"></span>
+              <div>
+                <p class="font-extrabold text-white">${escapeHtml(p.student.nombres)}</p>
+                <p class="text-[11px] text-slate-400">Casa: ${homeCount} • Juego: ${activeCount} • Meta: ${goalCount}/4</p>
+              </div>
+            </div>
+            ${idx === gameState.turnIdx ? '<span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white">TURNO</span>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      renderParchisBoard();
+    }
+
+    function renderParchisBoard() {
+      const boardEl = document.getElementById('parchis-board');
+      const validTokens = gameState.phase === 'SELECT_TOKEN'
+        ? getValidTokensForMove(gameState.turnIdx, gameState.diceValue)
+        : [];
+
+      const coordToTrack = {};
+      TRACK_19X19.forEach(([r, c], idx) => { coordToTrack[`${r}-${c}`] = idx + 1; });
+
+      const finalLaneMap = {};
+      Object.entries(FINAL_LANES_19X19).forEach(([colorId, coords]) => {
+        coords.forEach(([r, c]) => { finalLaneMap[`${r}-${c}`] = colorId; });
+      });
+
+      const tokensByCoord = {};
+      const pushToken = (key, pIdx, tIdx, colorBg, isPlayable) => {
+        if (!tokensByCoord[key]) tokensByCoord[key] = [];
+        tokensByCoord[key].push({ pIdx, tIdx, colorBg, isPlayable });
+      };
+
+      gameState.players.forEach((p, pIdx) => {
+        p.tokens.forEach((t, tIdx) => {
+          const isPlayable = pIdx === gameState.turnIdx && validTokens.includes(tIdx);
+          if (t.state === 'track') {
+            const [tr, tc] = TRACK_19X19[t.pos - 1];
+            pushToken(`${tr}-${tc}`, pIdx, tIdx, p.color.bg, isPlayable);
+          } else if (t.state === 'final') {
+            const [fr, fc] = FINAL_LANES_19X19[p.color.id][t.pos - 1];
+            pushToken(`${fr}-${fc}`, pIdx, tIdx, p.color.bg, isPlayable);
+          }
+        });
+      });
+
+      const buildHomeHouse = (colorObj, gridRowStart, gridColStart) => {
+        const playerIdx = gameState.players.findIndex(p => p.color.id === colorObj.id);
+        const player = playerIdx !== -1 ? gameState.players[playerIdx] : null;
+
+        const pocketsHtml = [0, 1, 2, 3].map(tIdx => {
+          const token = player ? player.tokens[tIdx] : null;
+          if (token && token.state === 'home') {
+            const isPlayable = playerIdx === gameState.turnIdx && validTokens.includes(tIdx);
+            return `
+              <div class="home-pocket">
+                <button type="button" onclick="seleccionarFicha(${playerIdx}, ${tIdx})"
+                  class="piece-token piece-in-home ${colorObj.bg} ${isPlayable ? 'piece-playable' : ''}">
+                  ${tIdx + 1}
+                </button>
+              </div>
+            `;
+          }
+          return `<div class="home-pocket"></div>`;
+        }).join('');
+
+        return `
+          <div class="home-zone ${colorObj.bg}"
+               style="grid-row: ${gridRowStart} / span 8; grid-column: ${gridColStart} / span 8;">
+            <div class="home-inner-card">
+              ${pocketsHtml}
+            </div>
+          </div>
+        `;
+      };
+
+      const goalCounts = { yellow: 0, blue: 0, red: 0, green: 0 };
+      gameState.players.forEach(p => {
+        goalCounts[p.color.id] = p.tokens.filter(t => t.state === 'goal').length;
+      });
+
+      const metaCenterHtml = `
+        <div style="grid-row: 9 / span 3; grid-column: 9 / span 3;" class="relative border border-slate-900 overflow-hidden bg-slate-900">
+          <svg viewBox="0 0 100 100" class="w-full h-full block">
+            <polygon points="0,0 100,0 50,50" fill="#e11d48" stroke="#0f172a" stroke-width="1.5" />
+            <polygon points="100,0 100,100 50,50" fill="#2563eb" stroke="#0f172a" stroke-width="1.5" />
+            <polygon points="0,100 100,100 50,50" fill="#facc15" stroke="#0f172a" stroke-width="1.5" />
+            <polygon points="0,0 0,100 50,50" fill="#059669" stroke="#0f172a" stroke-width="1.5" />
+            <circle cx="50" cy="50" r="16" fill="#0f172a" />
+            <text x="50" y="53" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="800">META</text>
+            ${goalCounts.red > 0 ? `<text x="50" y="22" text-anchor="middle" fill="#fff" font-size="14" font-weight="900">${goalCounts.red}</text>` : ''}
+            ${goalCounts.blue > 0 ? `<text x="80" y="54" text-anchor="middle" fill="#fff" font-size="14" font-weight="900">${goalCounts.blue}</text>` : ''}
+            ${goalCounts.yellow > 0 ? `<text x="50" y="88" text-anchor="middle" fill="#0f172a" font-size="14" font-weight="900">${goalCounts.yellow}</text>` : ''}
+            ${goalCounts.green > 0 ? `<text x="20" y="54" text-anchor="middle" fill="#fff" font-size="14" font-weight="900">${goalCounts.green}</text>` : ''}
+          </svg>
+        </div>
+      `;
+
+      let html = '';
+      html += buildHomeHouse(PLAYER_COLORS[2], 1, 1);
+      html += buildHomeHouse(PLAYER_COLORS[1], 1, 12);
+      html += buildHomeHouse(PLAYER_COLORS[3], 12, 1);
+      html += buildHomeHouse(PLAYER_COLORS[0], 12, 12);
+      html += metaCenterHtml;
+
+      for (let r = 0; r < 19; r++) {
+        for (let c = 0; c < 19; c++) {
+          const inCorner = (r <= 7 && c <= 7) || (r <= 7 && c >= 11) || (r >= 11 && c <= 7) || (r >= 11 && c >= 11);
+          const inCenter = (r >= 8 && r <= 10 && c >= 8 && c <= 10);
+          if (inCorner || inCenter) continue;
+
+          const key = `${r}-${c}`;
+          let cellClasses = 'p-cell bg-white';
+          let label = '';
+
+          const laneColor = finalLaneMap[key];
+          if (laneColor === 'yellow') cellClasses = 'p-cell bg-amber-300 border-amber-400';
+          else if (laneColor === 'blue') cellClasses = 'p-cell bg-blue-400 border-blue-500';
+          else if (laneColor === 'red') cellClasses = 'p-cell bg-rose-400 border-rose-500';
+          else if (laneColor === 'green') cellClasses = 'p-cell bg-emerald-400 border-emerald-500';
+
+          const trackNum = coordToTrack[key];
+          if (trackNum) {
+            label = trackNum;
+            if (trackNum === 5) cellClasses = 'p-cell bg-amber-400 text-slate-950 safe-cell';
+            else if (trackNum === 22) cellClasses = 'p-cell bg-blue-600 text-white safe-cell';
+            else if (trackNum === 39) cellClasses = 'p-cell bg-rose-600 text-white safe-cell';
+            else if (trackNum === 56) cellClasses = 'p-cell bg-emerald-600 text-white safe-cell';
+            else if (SAFE_CELLS.has(trackNum)) cellClasses = 'p-cell bg-slate-200 text-slate-800 safe-cell';
+          }
+
+          const cellTokens = tokensByCoord[key] || [];
+          const tokensHtml = cellTokens.map(tk => `
+            <button type="button" onclick="seleccionarFicha(${tk.pIdx}, ${tk.tIdx})"
+              class="piece-token ${tk.colorBg} ${tk.isPlayable ? 'piece-playable' : ''}">
+              ${tk.tIdx + 1}
+            </button>
+          `).join('');
+
+          html += `
+            <div class="${cellClasses}" style="grid-row:${r + 1};grid-column:${c + 1};">
+              ${tokensHtml.length === 0
+              ? `<span class="opacity-65 z-10">${label}</span>`
+              : `<div class="flex items-center justify-center w-full h-full gap-0.5 z-20">${tokensHtml}</div>`
+            }
+            </div>
+          `;
+        }
+      }
+
+      boardEl.innerHTML = html;
+    }
+
+    // =========================================================================
+    // 11. INICIALIZACIÓN
+    // =========================================================================
+    async function refreshData() {
+      try {
+        registeredStudents = await dbGetAll('estudiantes');
+        questionsBank = await dbGetAll('preguntas');
+      } catch (err) {
+        console.error('Error al actualizar datos desde SQLite:', err);
+      }
+      renderQuestionsBank();
+      updateMateriaSelector();
+      renderLobby();
+    }
+
+    window.onload = async () => {
+      await initDatabase();
+      await refreshData();
+    };
+  </script>
+</body>
+
+</html>

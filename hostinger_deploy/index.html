@@ -773,49 +773,160 @@
     }
 
     // =========================================================================
-    // 2. BASE DE DATOS REST (Express + SQLite: database.sqlite)
+    // 2. BASE DE DATOS HÍBRIDA (API REST Express/PHP + SQLite y Fallback LocalStorage)
     // =========================================================================
     const API_BASE = '/api';
+    let isOfflineMode = false;
+
+    // Preguntas por defecto precargadas para GitHub Pages / Offline
+    const DEFAULT_PREGUNTAS = [
+      { id: 1, materia: 'Cultura General', enunciado: '¿Cuál es el planeta más grande del sistema solar?', opcion_a: 'Marte', opcion_b: 'Júpiter', opcion_c: 'Saturno', opcion_d: 'Neptuno', respuesta_correcta: 'B' },
+      { id: 2, materia: 'Matemáticas', enunciado: '¿Cuánto es 8 x 7?', opcion_a: '54', opcion_b: '64', opcion_c: '56', opcion_d: '48', respuesta_correcta: 'C' },
+      { id: 3, materia: 'Geografía', enunciado: '¿Cuál es el océano más grande de la Tierra?', opcion_a: 'Atlántico', opcion_b: 'Índico', opcion_c: 'Ártico', opcion_d: 'Pacífico', respuesta_correcta: 'D' },
+      { id: 4, materia: 'Ciencias Naturales', enunciado: '¿Qué órgano bombea la sangre en el cuerpo humano?', opcion_a: 'El corazón', opcion_b: 'El hígado', opcion_c: 'Los pulmones', opcion_d: 'El estómago', respuesta_correcta: 'A' },
+      { id: 5, materia: 'Geografía', enunciado: '¿Cuál es la capital de Ecuador?', opcion_a: 'Guayaquil', opcion_b: 'Cuenca', opcion_c: 'Quito', opcion_d: 'Ambato', respuesta_correcta: 'C' },
+      { id: 6, materia: 'Matemáticas', enunciado: '¿Cuántos lados tiene un hexágono?', opcion_a: 'Cinco', opcion_b: 'Seis', opcion_c: 'Siete', opcion_d: 'Ocho', respuesta_correcta: 'B' },
+      { id: 7, materia: 'Ciencias Naturales', enunciado: '¿Qué gas respiran las plantas para realizar la fotosíntesis?', opcion_a: 'Oxígeno', opcion_b: 'Nitrógeno', opcion_c: 'Dióxido de carbono', opcion_d: 'Hidrógeno', respuesta_correcta: 'C' },
+      { id: 8, materia: 'Historia y Geografía', enunciado: '¿En qué continente se encuentra Egipto?', opcion_a: 'Asia', opcion_b: 'Europa', opcion_c: 'África', opcion_d: 'Oceanía', respuesta_correcta: 'C' },
+      { id: 9, materia: 'Matemáticas', enunciado: '¿Cuál es el resultado de 144 dividido para 12?', opcion_a: '11', opcion_b: '12', opcion_c: '14', opcion_d: '10', respuesta_correcta: 'B' },
+      { id: 10, materia: 'Lenguaje y Literatura', enunciado: '¿Quién escribió la novela Don Quijote de la Mancha?', opcion_a: 'Gabriel García Márquez', opcion_b: 'Miguel de Cervantes', opcion_c: 'Pablo Neruda', opcion_d: 'Mario Vargas Llosa', respuesta_correcta: 'B' },
+      { id: 11, materia: 'Ciencias Naturales', enunciado: '¿Cuál es el símbolo químico del agua?', opcion_a: 'O2', opcion_b: 'CO2', opcion_c: 'H2O', opcion_d: 'NaCl', respuesta_correcta: 'C' },
+      { id: 12, materia: 'Matemáticas', enunciado: '¿Cuántos minutos tiene una hora y media?', opcion_a: '60 minutos', opcion_b: '75 minutos', opcion_c: '90 minutos', opcion_d: '120 minutos', respuesta_correcta: 'C' }
+    ];
+
+    const DEFAULT_DOCENTES = [
+      { id: 1, nombre: 'Prof. Carlos Morales', correo: 'docente@clase.edu', clave: 'docente123' }
+    ];
+
+    function getLocalStore(key, defaultValue = []) {
+      try {
+        const val = localStorage.getItem(`parchis_${key}`);
+        if (!val) {
+          localStorage.setItem(`parchis_${key}`, JSON.stringify(defaultValue));
+          return defaultValue;
+        }
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : defaultValue;
+      } catch (e) {
+        return defaultValue;
+      }
+    }
+
+    function setLocalStore(key, data) {
+      try {
+        localStorage.setItem(`parchis_${key}`, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Error al guardar en localStorage:', e);
+      }
+    }
 
     async function initDatabase() {
+      // Precarga automática en localStorage para uso inmediato offline o en GitHub Pages
+      if (!localStorage.getItem('parchis_docentes')) setLocalStore('docentes', DEFAULT_DOCENTES);
+      if (!localStorage.getItem('parchis_preguntas')) setLocalStore('preguntas', DEFAULT_PREGUNTAS);
+      if (!localStorage.getItem('parchis_estudiantes')) setLocalStore('estudiantes', []);
+
       try {
         const res = await fetch(`${API_BASE}/health`);
-        if (!res.ok) console.warn('Servidor respondió con estado:', res.status);
+        if (!res.ok) {
+          isOfflineMode = true;
+        }
       } catch (err) {
-        console.warn('Conectando con el servidor SQLite...', err);
+        isOfflineMode = true;
       }
       return true;
     }
 
     async function dbGetAll(store) {
-      const res = await fetch(`${API_BASE}/${store}`);
-      if (!res.ok) {
-        throw new Error(`Error al cargar ${store} desde el servidor.`);
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch(`${API_BASE}/${store}`);
+          if (res.ok) {
+            const data = await res.json();
+            setLocalStore(store, data);
+            return data;
+          }
+          isOfflineMode = true;
+        } catch (err) {
+          isOfflineMode = true;
+        }
       }
-      return await res.json();
+
+      // Fallback a localStorage sin errores
+      if (store === 'docentes') return getLocalStore('docentes', DEFAULT_DOCENTES);
+      if (store === 'preguntas') return getLocalStore('preguntas', DEFAULT_PREGUNTAS);
+      return getLocalStore(store, []);
     }
 
     async function dbAdd(store, item) {
-      const res = await fetch(`${API_BASE}/${store}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item)
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || `Error al guardar en ${store}.`);
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch(`${API_BASE}/${store}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const id = data.id || (data[store.slice(0, -1)] && data[store.slice(0, -1)].id) || data;
+            const list = getLocalStore(store, []);
+            list.push({ ...item, id });
+            setLocalStore(store, list);
+            return id;
+          }
+          if (res.status === 409 || res.status === 400) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Error al guardar en ${store}.`);
+          }
+          isOfflineMode = true;
+        } catch (err) {
+          if (err.message && (err.message.includes('Ya existe') || err.message.includes('obligatorio'))) {
+            throw err;
+          }
+          isOfflineMode = true;
+        }
       }
-      return data.id || (data[store.slice(0, -1)] && data[store.slice(0, -1)].id) || data;
+
+      // Fallback automático en localStorage
+      const list = getLocalStore(store, store === 'docentes' ? DEFAULT_DOCENTES : (store === 'preguntas' ? DEFAULT_PREGUNTAS : []));
+
+      if (store === 'estudiantes') {
+        if (list.some(s => s.cedula === item.cedula || s.correo.toLowerCase() === item.correo.toLowerCase())) {
+          throw new Error('Ya existe un estudiante registrado con esa cédula o correo.');
+        }
+      }
+      if (store === 'docentes') {
+        if (list.some(d => d.correo.toLowerCase() === item.correo.toLowerCase())) {
+          throw new Error('Ya existe un docente con este correo.');
+        }
+      }
+
+      const id = Date.now();
+      const newItem = { ...item, id };
+      list.push(newItem);
+      setLocalStore(store, list);
+      return id;
     }
 
     async function dbDelete(store, id) {
-      const res = await fetch(`${API_BASE}/${store}/${id}`, {
-        method: 'DELETE'
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Error al eliminar de ${store}.`);
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch(`${API_BASE}/${store}/${id}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            const list = getLocalStore(store, []).filter(item => item.id !== id);
+            setLocalStore(store, list);
+            return true;
+          }
+          isOfflineMode = true;
+        } catch (err) {
+          isOfflineMode = true;
+        }
       }
+
+      const list = getLocalStore(store, []).filter(item => item.id !== id);
+      setLocalStore(store, list);
       return true;
     }
 
@@ -932,27 +1043,55 @@
       const correo = document.getElementById('doc-correo').value.trim().toLowerCase();
       const clave = document.getElementById('doc-clave').value;
 
-      try {
-        const res = await fetch('/api/docentes/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombre, correo, clave })
-        });
-        const data = await res.json();
+      let loggedIn = false;
 
-        if (!res.ok) {
-          return showToast(data.error || 'Contraseña incorrecta para esta cuenta docente.', 'error');
+      // 1. Intentar con backend API si está disponible
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch('/api/docentes/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, correo, clave })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            activeDocente = data.docente;
+            showToast(data.message || (data.isNew ? 'Cuenta docente registrada en base de datos.' : 'Sesión docente activa.'), 'success');
+            loggedIn = true;
+          } else if (res.status === 401) {
+            const data = await res.json().catch(() => ({}));
+            return showToast(data.error || 'Contraseña incorrecta para esta cuenta docente.', 'error');
+          } else {
+            isOfflineMode = true;
+          }
+        } catch (err) {
+          isOfflineMode = true;
         }
-
-        activeDocente = data.docente;
-        showToast(data.message || (data.isNew ? 'Cuenta docente registrada en base de datos.' : 'Sesión docente activa.'), 'success');
-
-        document.getElementById('doc-active-label').textContent = `${activeDocente.nombre} (${activeDocente.correo})`;
-        document.getElementById('docente-auth-box').classList.add('hidden');
-        document.getElementById('docente-panel-content').classList.remove('hidden');
-      } catch (err) {
-        showToast('Error al conectar con el servidor: ' + err.message, 'error');
       }
+
+      // 2. Respaldo automático en localStorage (GitHub Pages / Modo estático)
+      if (!loggedIn) {
+        const docentes = getLocalStore('docentes', DEFAULT_DOCENTES);
+        const existente = docentes.find(d => d.correo.toLowerCase() === correo);
+
+        if (existente) {
+          if (existente.clave !== clave) {
+            return showToast('Contraseña incorrecta para esta cuenta docente.', 'error');
+          }
+          activeDocente = existente;
+          showToast('Sesión docente activa.', 'success');
+        } else {
+          const id = Date.now();
+          activeDocente = { id, nombre: nombre || 'Docente', correo, clave };
+          docentes.push(activeDocente);
+          setLocalStore('docentes', docentes);
+          showToast('Cuenta docente registrada.', 'success');
+        }
+      }
+
+      document.getElementById('doc-active-label').textContent = `${activeDocente.nombre} (${activeDocente.correo})`;
+      document.getElementById('docente-auth-box').classList.add('hidden');
+      document.getElementById('docente-panel-content').classList.remove('hidden');
     });
 
     function cerrarSesionDocente() {
@@ -1104,17 +1243,32 @@ ANSWER: C`;
       const detected = parseAikenText(raw, materia);
       if (detected.length === 0) return showToast('No se detectaron preguntas válidas en formato Aiken.', 'error');
 
-      try {
-        const res = await fetch('/api/preguntas/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(detected)
-        });
-        if (!res.ok) {
-          for (const q of detected) await dbAdd('preguntas', q);
+      let savedBulk = false;
+      if (!isOfflineMode) {
+        try {
+          const res = await fetch('/api/preguntas/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(detected)
+          });
+          if (res.ok) {
+            savedBulk = true;
+          } else {
+            isOfflineMode = true;
+          }
+        } catch (err) {
+          isOfflineMode = true;
         }
-      } catch (err) {
-        for (const q of detected) await dbAdd('preguntas', q);
+      }
+
+      if (!savedBulk) {
+        // Guardar directamente en localStorage
+        const list = getLocalStore('preguntas', DEFAULT_PREGUNTAS);
+        let baseId = Date.now();
+        detected.forEach((q, idx) => {
+          list.push({ ...q, id: baseId + idx });
+        });
+        setLocalStore('preguntas', list);
       }
 
       document.getElementById('aiken-textarea').value = '';
@@ -1227,7 +1381,7 @@ ANSWER: C`;
 
       let found = registeredStudents.find(s => s.cedula.toLowerCase() === ident || s.correo === ident);
 
-      if (!found) {
+      if (!found && !isOfflineMode) {
         try {
           const res = await fetch('/api/estudiantes/login', {
             method: 'POST',
@@ -1240,8 +1394,13 @@ ANSWER: C`;
             await refreshData();
           }
         } catch (err) {
-          // Si falla conexión, el flujo continúa a evaluar !found
+          // Si falla conexión, continúa a buscar en localStorage
         }
+      }
+
+      if (!found) {
+        const localEsts = getLocalStore('estudiantes', []);
+        found = localEsts.find(s => s.cedula.toLowerCase() === ident || s.correo.toLowerCase() === ident);
       }
 
       if (!found) return showToast('Estudiante no encontrado. Regístralo primero.', 'error');
