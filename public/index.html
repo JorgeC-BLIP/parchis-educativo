@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Parchís Educativo</title>
+  <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet" />
@@ -265,6 +266,11 @@
       </div>
 
       <nav class="flex items-center gap-2">
+        <div id="socket-badge"
+          class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900/90 text-slate-300 border border-slate-700">
+          <span id="socket-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span id="socket-status-text">Conectando...</span>
+        </div>
         <button id="btn-sound" onclick="toggleSound()" title="Sonido"
           class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm transition">
           🔊
@@ -367,45 +373,181 @@
         </div>
       </div>
 
-      <!-- Mesa de Jugadores (2 a 4 Estudiantes) -->
+      <!-- Mesa de Jugadores y Modalidades (Local / Online) -->
       <div class="lg:col-span-7 glass-card rounded-3xl p-6 flex flex-col justify-between">
-        <div>
-          <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-700/80">
-            <div>
-              <h2 class="text-xl font-extrabold text-white">Jugadores de la Partida</h2>
-              <p class="text-xs text-slate-400">Se requiere un mínimo de 2 y un máximo de 4 estudiantes registrados.</p>
+        <!-- Selector de Modalidad -->
+        <div class="mb-5 flex rounded-2xl bg-slate-900/90 p-1.5 border border-slate-700/80">
+          <button id="tab-mode-local" type="button" onclick="setGameMode('local')"
+            class="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition bg-indigo-600 text-white shadow-md flex items-center justify-center gap-2">
+            <span>👥</span> Modo Local (Mismo Dispositivo)
+          </button>
+          <button id="tab-mode-online" type="button" onclick="setGameMode('online')"
+            class="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition text-slate-400 hover:text-white flex items-center justify-center gap-2">
+            <span>🌐</span> Multijugador Online (Salas Privadas)
+          </button>
+        </div>
+
+        <!-- CONTENEDOR 1: MODO LOCAL (MISMO DISPOSITIVO) -->
+        <div id="lobby-local-container" class="flex-1 flex flex-col justify-between">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-700/80">
+              <div>
+                <h2 class="text-xl font-extrabold text-white">Jugadores Locales</h2>
+                <p class="text-xs text-slate-400">Jueguen en turnos en esta misma pantalla (2 a 4 estudiantes).</p>
+              </div>
+              <span id="lobby-count-badge"
+                class="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                0 / 4 Jugadores
+              </span>
             </div>
-            <span id="lobby-count-badge"
-              class="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              0 / 4 Jugadores
+
+            <!-- Materia Evaluada Local -->
+            <div class="mt-4 glass-subcard p-4 rounded-2xl">
+              <label class="block text-xs font-extrabold uppercase tracking-wider text-indigo-300 mb-1.5">
+                Materia Seleccionada para el Tablero
+              </label>
+              <select id="lobby-materia-select"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="TODAS">Todas las materias cargadas</option>
+              </select>
+              <p id="lobby-questions-info" class="text-xs text-slate-400 font-medium mt-1.5"></p>
+            </div>
+
+            <!-- 4 Puestos del Tablero Local -->
+            <div id="lobby-slots" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+          </div>
+
+          <div
+            class="mt-6 pt-4 border-t border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p id="lobby-validation-msg" class="text-xs font-bold text-rose-400">
+              Agrega al menos 2 estudiantes registrados para iniciar.
+            </p>
+            <button id="btn-start-game" disabled onclick="iniciarPartida()"
+              class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">
+              Comenzar Partida Local
+            </button>
+          </div>
+        </div>
+
+        <!-- CONTENEDOR 2: MULTIJUGADOR ONLINE EN TIEMPO REAL -->
+        <div id="lobby-online-container" class="hidden flex-1 flex flex-col justify-between space-y-4">
+          <!-- Identificación del Estudiante para el juego Online -->
+          <div id="online-auth-box"
+            class="p-4 rounded-2xl bg-slate-900/90 border border-indigo-500/30 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span
+                class="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-lg font-bold">👤</span>
+              <div>
+                <p id="online-student-name" class="font-extrabold text-sm text-white">Sin estudiante activo</p>
+                <p id="online-student-cedula" class="text-xs text-slate-400">Ingresa o regístrate en el panel izquierdo
+                </p>
+              </div>
+            </div>
+            <span id="online-student-badge"
+              class="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">
+              Identifícate primero
             </span>
           </div>
 
-          <!-- Materia Evaluada -->
-          <div class="mt-4 glass-subcard p-4 rounded-2xl">
-            <label class="block text-xs font-extrabold uppercase tracking-wider text-indigo-300 mb-1.5">
-              Materia Seleccionada para el Tablero
-            </label>
-            <select id="lobby-materia-select"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="TODAS">Todas las materias cargadas</option>
-            </select>
-            <p id="lobby-questions-info" class="text-xs text-slate-400 font-medium mt-1.5"></p>
+          <!-- Vista Previa a la Sala (Crear Sala o Unirse con Código) -->
+          <div id="online-pre-room-view" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Tarjeta Crear Sala -->
+              <div class="glass-subcard p-5 rounded-2xl border border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center gap-2.5 mb-2">
+                    <span
+                      class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm">👑</span>
+                    <h3 class="font-extrabold text-white text-base">Crear Sala Privada</h3>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">Sé el anfitrión, selecciona la materia y genera un código de 6
+                    caracteres para tus compañeros.</p>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Materia Evaluada</label>
+                  <select id="online-materia-select"
+                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500 mb-4">
+                    <option value="TODAS">Todas las materias cargadas</option>
+                  </select>
+                </div>
+                <button type="button" onclick="crearSalaOnline()"
+                  class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg transition">
+                  🎲 Crear Nueva Sala
+                </button>
+              </div>
+
+              <!-- Tarjeta Unirse a Sala -->
+              <div class="glass-subcard p-5 rounded-2xl border border-slate-700/80 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center gap-2.5 mb-2">
+                    <span
+                      class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm">🔑</span>
+                    <h3 class="font-extrabold text-white text-base">Unirse con Código</h3>
+                  </div>
+                  <p class="text-xs text-slate-400 mb-3">Ingresa el código privado de 6 caracteres compartido por el
+                    anfitrión de la sala.</p>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Código de Sala (6 caracteres)</label>
+                  <input type="text" id="input-room-code" maxlength="6" placeholder="EJ. PARCH7"
+                    oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono tracking-widest text-center uppercase font-extrabold text-white outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
+                </div>
+                <button type="button" onclick="unirseSalaOnline()"
+                  class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg transition">
+                  🚀 Unirse a la Sala
+                </button>
+              </div>
+            </div>
           </div>
 
-          <!-- 4 Puestos del Tablero -->
-          <div id="lobby-slots" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
-        </div>
+          <!-- Vista de Sala de Espera Activa -->
+          <div id="online-room-waiting-view" class="hidden space-y-4">
+            <!-- Banner con Código de Sala -->
+            <div
+              class="p-5 rounded-2xl bg-gradient-to-r from-indigo-950/80 via-slate-900 to-indigo-950/80 border-2 border-indigo-500/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <span class="text-[11px] font-extrabold uppercase tracking-widest text-indigo-300">Sala Privada en
+                  Tiempo Real</span>
+                <div class="flex items-center gap-3 mt-1">
+                  <span id="display-room-code"
+                    class="text-3xl font-black text-white font-mono tracking-widest">------</span>
+                  <button type="button" onclick="copiarCodigoSala()"
+                    class="px-3 py-1.5 rounded-xl bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 text-xs font-bold border border-indigo-500/40 transition">
+                    📋 Copiar Código
+                  </button>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-bold text-slate-400">Materia:</span>
+                <p id="display-room-materia" class="text-sm font-extrabold text-amber-300">Todas las materias</p>
+              </div>
+            </div>
 
-        <div
-          class="mt-6 pt-4 border-t border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p id="lobby-validation-msg" class="text-xs font-bold text-rose-400">
-            Agrega al menos 2 estudiantes registrados para iniciar.
-          </p>
-          <button id="btn-start-game" disabled onclick="iniciarPartida()"
-            class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">
-            Comenzar Partida
-          </button>
+            <!-- Puestos de Jugadores Online -->
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Jugadores en la Sala (2 a
+                  4)</span>
+                <span id="online-players-count-badge"
+                  class="px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  1 / 4 Jugadores
+                </span>
+              </div>
+              <div id="online-players-slots" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+
+            <!-- Barra Inferior de la Sala Online -->
+            <div class="pt-4 border-t border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="salirDeSalaOnline()"
+                  class="px-4 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition">
+                  ✕ Salir de la Sala
+                </button>
+                <p id="online-waiting-msg" class="text-xs font-bold text-slate-400"></p>
+              </div>
+              <button id="btn-start-online-game" disabled onclick="iniciarPartidaOnline()"
+                class="w-full sm:w-auto px-7 py-3 rounded-2xl bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">
+                Comenzar Partida Online
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -573,6 +715,22 @@
 
       <!-- Tablero de Parchís -->
       <div class="lg:col-span-8 flex flex-col items-center">
+        <!-- Banner Multijugador Online (solo visible en partidas online) -->
+        <div id="online-game-banner"
+          class="hidden w-full max-w-[680px] mb-3 px-4 py-2.5 rounded-2xl bg-indigo-950/90 border border-indigo-500/40 text-xs font-bold text-indigo-200 flex flex-wrap items-center justify-between gap-2 shadow-lg">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Sala Online: <b id="game-banner-code" class="font-mono text-white tracking-widest text-sm"></b></span>
+            <span class="text-slate-500">•</span>
+            <span>Materia: <span id="game-banner-materia" class="text-amber-300"></span></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-300">Tu Ficha:</span>
+            <span id="game-banner-my-color"
+              class="px-2.5 py-0.5 rounded-lg text-white font-extrabold text-[11px]"></span>
+          </div>
+        </div>
+
         <div class="board-frame">
           <div id="parchis-board" class="parchis-grid"></div>
         </div>
@@ -672,7 +830,12 @@
       </div>
 
       <div class="p-6">
-        <p id="q-modal-enunciado" class="text-base font-extrabold text-white mb-5 leading-snug"></p>
+        <p id="q-modal-enunciado" class="text-base font-extrabold text-white mb-4 leading-snug"></p>
+        <div id="q-modal-waiting"
+          class="hidden mb-4 p-3 rounded-2xl bg-indigo-950/70 border border-indigo-500/30 text-xs font-bold text-amber-300 text-center flex items-center justify-center gap-2">
+          <span class="animate-pulse">⏳</span>
+          <span id="q-modal-waiting-text">Esperando respuesta del jugador en turno...</span>
+        </div>
         <div id="q-modal-options" class="space-y-2.5"></div>
         <div id="q-modal-feedback" class="hidden mt-4 p-4 rounded-2xl text-sm font-bold"></div>
       </div>
@@ -994,6 +1157,14 @@
       phase: 'ROLL',
       pendingMove: null
     };
+
+    // Variables de Conexión Multijugador Online (Socket.io)
+    let socket = null;
+    let socketConnected = false;
+    let currentGameMode = 'local'; // 'local' | 'online'
+    let activeStudent = null; // Estudiante identificado actualmente
+    let activeOnlineRoom = null; // Sala online actual en memoria del servidor
+    let myOnlinePlayer = null; // Jugador local asignado en la sala online
 
     // =========================================================================
     // 5. UTILIDADES UI Y NAVEGACIÓN
@@ -1335,12 +1506,22 @@ ANSWER: C`;
     }
 
     function updateMateriaSelector() {
-      const select = document.getElementById('lobby-materia-select');
-      const currentVal = select.value;
+      const selectLocal = document.getElementById('lobby-materia-select');
+      const selectOnline = document.getElementById('online-materia-select');
       const materias = [...new Set(questionsBank.map(q => q.materia))];
-      select.innerHTML = `<option value="TODAS">Todas las materias cargadas (${questionsBank.length})</option>` +
+      const optionsHtml = `<option value="TODAS">Todas las materias cargadas (${questionsBank.length})</option>` +
         materias.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)} (${questionsBank.filter(q => q.materia === m).length} preguntas)</option>`).join('');
-      if ([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
+
+      if (selectLocal) {
+        const currentVal = selectLocal.value;
+        selectLocal.innerHTML = optionsHtml;
+        if ([...selectLocal.options].some(o => o.value === currentVal)) selectLocal.value = currentVal;
+      }
+      if (selectOnline) {
+        const currentVal = selectOnline.value;
+        selectOnline.innerHTML = optionsHtml;
+        if ([...selectOnline.options].some(o => o.value === currentVal)) selectOnline.value = currentVal;
+      }
       renderLobby();
     }
 
@@ -1368,7 +1549,11 @@ ANSWER: C`;
         document.getElementById('cedula-counter').textContent = '0 / 10';
         await refreshData();
         const nuevo = registeredStudents.find(s => s.id === id || s.cedula === cedula);
-        if (nuevo) agregarJugadorASala(nuevo);
+        if (nuevo) {
+          activeStudent = nuevo;
+          updateOnlineAuthDisplay();
+          agregarJugadorASala(nuevo);
+        }
         showToast('Estudiante guardado en base de datos.', 'success');
       } catch (err) {
         showToast(err.message, 'error');
@@ -1405,12 +1590,22 @@ ANSWER: C`;
 
       if (!found) return showToast('Estudiante no encontrado. Regístralo primero.', 'error');
       document.getElementById('login-identificador').value = '';
+      activeStudent = found;
+      updateOnlineAuthDisplay();
       agregarJugadorASala(found);
     }
 
+    function seleccionarEstudianteComoActivo(student) {
+      activeStudent = student;
+      updateOnlineAuthDisplay();
+      showToast(`Estudiante seleccionado: ${student.nombres} ${student.apellidos}`, 'info');
+    }
+
     function agregarJugadorASala(student) {
-      if (lobbyPlayers.some(p => p.id === student.id)) return showToast('Este estudiante ya está en la partida.', 'info');
-      if (lobbyPlayers.length >= 4) return showToast('Máximo 4 estudiantes por partida.', 'error');
+      activeStudent = student;
+      updateOnlineAuthDisplay();
+      if (lobbyPlayers.some(p => p.id === student.id)) return showToast('Este estudiante ya está en la mesa local.', 'info');
+      if (lobbyPlayers.length >= 4) return showToast('Máximo 4 estudiantes por partida local.', 'error');
       lobbyPlayers.push(student);
       renderLobby();
     }
@@ -1430,10 +1625,16 @@ ANSWER: C`;
               <p class="font-bold text-white">${escapeHtml(s.nombres)} ${escapeHtml(s.apellidos)}</p>
               <p class="text-[11px] text-slate-400">CI: ${escapeHtml(s.cedula)} • ${escapeHtml(s.correo)}</p>
             </div>
-            <button onclick='agregarJugadorASala(${JSON.stringify(s)})'
-              class="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 font-bold">
-              + Unir
-            </button>
+            <div class="flex items-center gap-1.5">
+              <button onclick='seleccionarEstudianteComoActivo(${JSON.stringify(s)})' title="Seleccionar para Sala Online"
+                class="px-2.5 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white font-bold transition text-[11px]">
+                👤 Usar
+              </button>
+              <button onclick='agregarJugadorASala(${JSON.stringify(s)})' title="Unir a mesa local"
+                class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 font-bold transition text-[11px]">
+                + Local
+              </button>
+            </div>
           </div>
         `).join('');
 
@@ -1494,6 +1695,8 @@ ANSWER: C`;
     // 8. MOTOR AUTÉNTICO Y JUSTO DEL PARCHÍS ESPAÑOL
     // =========================================================================
     function iniciarPartida() {
+      currentGameMode = 'local';
+      updateGameModeBanner();
       const selectedMat = document.getElementById('lobby-materia-select').value;
       const filteredQ = selectedMat === 'TODAS' ? [...questionsBank] : questionsBank.filter(q => q.materia === selectedMat);
       if (lobbyPlayers.length < 2 || filteredQ.length === 0) return;
@@ -1526,7 +1729,7 @@ ANSWER: C`;
       document.getElementById('game-materia-badge').textContent = gameState.materia;
       document.getElementById('game-log').innerHTML = '';
       renderDiceFace(null);
-      addGameLog(`Partida iniciada con ${gameState.players.length} estudiantes.`);
+      addGameLog(`Partida local iniciada con ${gameState.players.length} estudiantes.`);
       switchView('juego');
       renderGameUI();
     }
@@ -1560,6 +1763,16 @@ ANSWER: C`;
 
     function lanzarDado() {
       if (gameState.phase !== 'ROLL') return;
+
+      if (currentGameMode === 'online') {
+        if (!socket || !activeOnlineRoom) return;
+        const isMyTurn = (myOnlinePlayer && gameState.players[gameState.turnIdx].socketId === socket.id);
+        if (!isMyTurn) return;
+        document.getElementById('btn-roll-dice').disabled = true;
+        socket.emit('lanzar-dado', { codigo: activeOnlineRoom.codigo });
+        return;
+      }
+
       const diceEl = document.getElementById('dice-display');
       document.getElementById('btn-roll-dice').disabled = true;
       diceEl.classList.add('dice-spin');
@@ -1688,6 +1901,18 @@ ANSWER: C`;
 
     async function seleccionarFicha(pIdx, tokenIdx) {
       if (gameState.phase !== 'SELECT_TOKEN' || pIdx !== gameState.turnIdx) return;
+
+      if (currentGameMode === 'online') {
+        if (!socket || !activeOnlineRoom) return;
+        const isMyTurn = (myOnlinePlayer && gameState.players[gameState.turnIdx].socketId === socket.id);
+        if (!isMyTurn) return;
+        socket.emit('mover-ficha', {
+          codigo: activeOnlineRoom.codigo,
+          tokenIdx
+        });
+        return;
+      }
+
       const valid = getValidTokensForMove(gameState.turnIdx, gameState.diceValue);
       if (!valid.includes(tokenIdx)) return;
 
@@ -1822,6 +2047,11 @@ ANSWER: C`;
     }
 
     function responderPregunta(selectedKey, correctKey) {
+      if (currentGameMode === 'online') {
+        responderPreguntaOnline(selectedKey);
+        return;
+      }
+
       document.querySelectorAll('.q-opt-btn').forEach(b => b.disabled = true);
 
       const move = gameState.pendingMove;
@@ -1919,9 +2149,20 @@ ANSWER: C`;
     }
 
     function abandonarPartida() {
+      if (currentGameMode === 'online') {
+        if (socket && activeOnlineRoom) {
+          socket.emit('salir-sala');
+        }
+        activeOnlineRoom = null;
+        myOnlinePlayer = null;
+      }
       gameState.active = false;
       document.getElementById('nav-juego').classList.add('hidden');
+      document.getElementById('online-game-banner').classList.add('hidden');
       switchView('lobby');
+      if (currentGameMode === 'online') {
+        renderOnlineLobby();
+      }
     }
 
     // =========================================================================
@@ -1929,6 +2170,9 @@ ANSWER: C`;
     // =========================================================================
     function renderGameUI() {
       const currentPlayer = gameState.players[gameState.turnIdx];
+      const isOnline = (currentGameMode === 'online');
+      const isMyTurn = !isOnline || (myOnlinePlayer && currentPlayer.socketId === socket.id);
+
       document.getElementById('turn-player-name').textContent =
         `${currentPlayer.student.nombres} ${currentPlayer.student.apellidos}`;
       document.getElementById('turn-player-color').textContent = `Color ${currentPlayer.color.name}`;
@@ -1940,18 +2184,37 @@ ANSWER: C`;
       document.getElementById('turn-card').className =
         `glass-card rounded-3xl border-2 ${currentPlayer.color.border} p-5 transition-all`;
 
-      document.getElementById('btn-roll-dice').disabled = gameState.phase !== 'ROLL';
+      document.getElementById('btn-roll-dice').disabled = (!isMyTurn) || (gameState.phase !== 'ROLL');
+
+      const instr = document.getElementById('game-instruction');
+      if (isOnline) {
+        if (isMyTurn) {
+          if (gameState.phase === 'ROLL') {
+            instr.textContent = '🎯 ¡Es tu turno! Tira el dado para jugar.';
+          } else if (gameState.phase === 'SELECT_TOKEN') {
+            instr.textContent = `Sacaste ${gameState.diceValue}. Selecciona tu ficha para mover.`;
+          } else {
+            instr.textContent = 'Responde la pregunta en pantalla.';
+          }
+        } else {
+          instr.textContent = `Turno de ${currentPlayer.student.nombres} (${currentPlayer.color.name}). Esperando su jugada...`;
+        }
+      }
 
       document.getElementById('players-status-list').innerHTML = gameState.players.map((p, idx) => {
         const homeCount = p.tokens.filter(t => t.state === 'home').length;
         const goalCount = p.tokens.filter(t => t.state === 'goal').length;
         const activeCount = 4 - homeCount - goalCount;
+        const isMe = isOnline && myOnlinePlayer && p.socketId === socket.id;
         return `
           <div class="p-3 rounded-2xl border ${idx === gameState.turnIdx ? 'border-indigo-400 bg-slate-800/90 shadow-md' : 'border-slate-700/70 bg-slate-900/50'} flex items-center justify-between text-xs">
             <div class="flex items-center gap-2.5">
               <span class="w-4 h-4 rounded-full ${p.color.bg} inline-block shadow-sm"></span>
               <div>
-                <p class="font-extrabold text-white">${escapeHtml(p.student.nombres)}</p>
+                <p class="font-extrabold text-white flex items-center gap-1.5">
+                  <span>${escapeHtml(p.student.nombres)}</span>
+                  ${isMe ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-300 font-bold">TÚ</span>' : ''}
+                </p>
                 <p class="text-[11px] text-slate-400">Casa: ${homeCount} • Juego: ${activeCount} • Meta: ${goalCount}/4</p>
               </div>
             </div>
@@ -1965,7 +2228,9 @@ ANSWER: C`;
 
     function renderParchisBoard() {
       const boardEl = document.getElementById('parchis-board');
-      const validTokens = gameState.phase === 'SELECT_TOKEN'
+      const isOnline = (currentGameMode === 'online');
+      const isMyTurn = !isOnline || (myOnlinePlayer && gameState.players[gameState.turnIdx].socketId === socket.id);
+      const validTokens = (isMyTurn && gameState.phase === 'SELECT_TOKEN')
         ? getValidTokensForMove(gameState.turnIdx, gameState.diceValue)
         : [];
 
@@ -2104,6 +2369,446 @@ ANSWER: C`;
     }
 
     // =========================================================================
+    // 10.5 GESTIÓN MULTIJUGADOR ONLINE EN TIEMPO REAL (SOCKET.IO)
+    // =========================================================================
+    function setGameMode(mode) {
+      currentGameMode = mode;
+      const tabLocal = document.getElementById('tab-mode-local');
+      const tabOnline = document.getElementById('tab-mode-online');
+      const boxLocal = document.getElementById('lobby-local-container');
+      const boxOnline = document.getElementById('lobby-online-container');
+
+      if (mode === 'local') {
+        tabLocal.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition bg-indigo-600 text-white shadow-md flex items-center justify-center gap-2';
+        tabOnline.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition text-slate-400 hover:text-white flex items-center justify-center gap-2';
+        boxLocal.classList.remove('hidden');
+        boxOnline.classList.add('hidden');
+      } else {
+        tabOnline.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition bg-indigo-600 text-white shadow-md flex items-center justify-center gap-2';
+        tabLocal.className = 'flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition text-slate-400 hover:text-white flex items-center justify-center gap-2';
+        boxLocal.classList.add('hidden');
+        boxOnline.classList.remove('hidden');
+        updateOnlineAuthDisplay();
+        renderOnlineLobby();
+      }
+    }
+
+    function updateSocketStatus(connected, text) {
+      const dot = document.getElementById('socket-dot');
+      const txt = document.getElementById('socket-status-text');
+      if (!dot || !txt) return;
+      if (connected) {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        txt.textContent = text || 'Online Conectado';
+        txt.className = 'text-emerald-300';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        txt.textContent = text || 'Desconectado';
+        txt.className = 'text-slate-400';
+      }
+    }
+
+    function updateOnlineAuthDisplay() {
+      const nameEl = document.getElementById('online-student-name');
+      const ciEl = document.getElementById('online-student-cedula');
+      const badgeEl = document.getElementById('online-student-badge');
+      if (!nameEl || !ciEl || !badgeEl) return;
+
+      if (activeStudent) {
+        nameEl.textContent = `${activeStudent.nombres} ${activeStudent.apellidos}`;
+        ciEl.textContent = `Cédula: ${activeStudent.cedula} • ${activeStudent.correo}`;
+        badgeEl.textContent = 'Estudiante Listo';
+        badgeEl.className = 'px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+      } else {
+        nameEl.textContent = 'Sin estudiante activo';
+        ciEl.textContent = 'Ingresa o regístrate en el panel izquierdo para identificarte';
+        badgeEl.textContent = 'Identifícate primero';
+        badgeEl.className = 'px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700';
+      }
+    }
+
+    function updateGameModeBanner() {
+      const banner = document.getElementById('online-game-banner');
+      if (currentGameMode === 'online' && activeOnlineRoom && myOnlinePlayer) {
+        banner.classList.remove('hidden');
+        document.getElementById('game-banner-code').textContent = activeOnlineRoom.codigo;
+        document.getElementById('game-banner-materia').textContent = activeOnlineRoom.materia;
+        const myCol = document.getElementById('game-banner-my-color');
+        myCol.className = `px-2.5 py-0.5 rounded-lg text-white font-extrabold text-[11px] ${myOnlinePlayer.color.bg}`;
+        myCol.textContent = myOnlinePlayer.color.name;
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function renderOnlineLobby() {
+      const preView = document.getElementById('online-pre-room-view');
+      const waitView = document.getElementById('online-room-waiting-view');
+      if (!preView || !waitView) return;
+
+      if (!activeOnlineRoom) {
+        preView.classList.remove('hidden');
+        waitView.classList.add('hidden');
+        return;
+      }
+
+      preView.classList.add('hidden');
+      waitView.classList.remove('hidden');
+
+      document.getElementById('display-room-code').textContent = activeOnlineRoom.codigo;
+      document.getElementById('display-room-materia').textContent = activeOnlineRoom.materia === 'TODAS'
+        ? 'Todas las materias cargadas'
+        : activeOnlineRoom.materia;
+      document.getElementById('online-players-count-badge').textContent =
+        `${activeOnlineRoom.jugadores.length} / 4 Jugadores`;
+
+      const slotsEl = document.getElementById('online-players-slots');
+      slotsEl.innerHTML = PLAYER_COLORS.map((c, idx) => {
+        const jugador = activeOnlineRoom.jugadores[idx];
+        if (jugador) {
+          const isMe = socket && jugador.socketId === socket.id;
+          return `
+            <div class="p-4 rounded-2xl border-2 ${c.border} bg-slate-900/90 flex items-center justify-between shadow-md">
+              <div class="flex items-center gap-3">
+                <span class="w-9 h-9 rounded-xl ${c.bg} text-white font-black flex items-center justify-center text-sm shadow">
+                  ${idx + 1}
+                </span>
+                <div>
+                  <p class="font-extrabold text-sm text-white flex items-center gap-1.5">
+                    <span>${escapeHtml(jugador.student.nombres)} ${escapeHtml(jugador.student.apellidos)}</span>
+                    ${jugador.esHost ? '<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">👑 Anfitrión</span>' : ''}
+                    ${isMe ? '<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-500/30 text-indigo-300 font-bold">Tú</span>' : ''}
+                  </p>
+                  <p class="text-xs text-slate-400">Color ${c.name} • CI: ${escapeHtml(jugador.student.cedula)}</p>
+                </div>
+              </div>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            </div>
+          `;
+        }
+        return `
+          <div class="p-4 rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 flex items-center gap-3">
+            <span class="w-9 h-9 rounded-xl bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-sm">${idx + 1}</span>
+            <div>
+              <p class="text-xs font-bold text-slate-400">Puesto disponible (${c.name})</p>
+              <p class="text-[11px] text-slate-500">Comparte el código para que se unan</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const isHost = socket && (activeOnlineRoom.hostSocketId === socket.id);
+      const btnStart = document.getElementById('btn-start-online-game');
+      const msgEl = document.getElementById('online-waiting-msg');
+
+      if (isHost) {
+        btnStart.classList.remove('hidden');
+        if (activeOnlineRoom.jugadores.length >= 2) {
+          btnStart.disabled = false;
+          msgEl.textContent = `¡Listo! Puedes comenzar con ${activeOnlineRoom.jugadores.length} jugadores.`;
+          msgEl.className = 'text-xs font-extrabold text-emerald-400';
+        } else {
+          btnStart.disabled = true;
+          msgEl.textContent = 'Comparte el código. Se requiere mínimo 2 estudiantes.';
+          msgEl.className = 'text-xs font-bold text-amber-400';
+        }
+      } else {
+        btnStart.classList.add('hidden');
+        msgEl.innerHTML = `<span class="inline-block animate-pulse">⏳ Esperando a que el anfitrión inicie la partida...</span>`;
+        msgEl.className = 'text-xs font-bold text-indigo-300';
+      }
+    }
+
+    function crearSalaOnline() {
+      if (!activeStudent) {
+        return showToast('Ingresa o regístrate con tu cédula en el panel izquierdo para identificarte.', 'error');
+      }
+      if (!socket || !socketConnected) {
+        return showToast('Servidor WebSocket desconectado. Verifica que npm start esté activo.', 'error');
+      }
+      const mat = document.getElementById('online-materia-select').value;
+      socket.emit('crear-sala', {
+        estudiante: activeStudent,
+        materia: mat
+      });
+    }
+
+    function unirseSalaOnline() {
+      if (!activeStudent) {
+        return showToast('Ingresa o regístrate con tu cédula en el panel izquierdo para identificarte.', 'error');
+      }
+      if (!socket || !socketConnected) {
+        return showToast('Servidor WebSocket desconectado. Verifica que npm start esté activo.', 'error');
+      }
+      const code = (document.getElementById('input-room-code').value || '').trim().toUpperCase();
+      if (!code || code.length < 4) {
+        return showToast('Ingresa un código de sala válido (ej. PARCH7).', 'error');
+      }
+      socket.emit('unirse-sala', {
+        codigo: code,
+        estudiante: activeStudent
+      });
+    }
+
+    function salirDeSalaOnline() {
+      if (socket && activeOnlineRoom) {
+        socket.emit('salir-sala');
+      }
+      activeOnlineRoom = null;
+      myOnlinePlayer = null;
+      renderOnlineLobby();
+      showToast('Has salido de la sala.', 'info');
+    }
+
+    function iniciarPartidaOnline() {
+      if (!socket || !activeOnlineRoom) return;
+      socket.emit('iniciar-partida-online', {
+        codigo: activeOnlineRoom.codigo
+      });
+    }
+
+    function copiarCodigoSala() {
+      if (!activeOnlineRoom) return;
+      const code = activeOnlineRoom.codigo;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          showToast(`¡Código ${code} copiado al portapapeles!`, 'success');
+        }).catch(() => fallbackCopy(code));
+      } else {
+        fallbackCopy(code);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      document.body.removeChild(temp);
+      showToast(`¡Código ${text} copiado!`, 'success');
+    }
+
+    function abrirModalPreguntaOnline(question, isCapture, playerIdx, playerName) {
+      const modal = document.getElementById('question-modal');
+      const header = document.getElementById('q-modal-header');
+      const badge = document.getElementById('q-modal-badge');
+      const subtitle = document.getElementById('q-modal-subtitle');
+      const feedback = document.getElementById('q-modal-feedback');
+      const waitingEl = document.getElementById('q-modal-waiting');
+
+      feedback.classList.add('hidden');
+      document.getElementById('q-modal-materia').textContent = question.materia;
+      document.getElementById('q-modal-enunciado').textContent = question.enunciado;
+
+      const isMyTurn = (myOnlinePlayer && gameState.players[playerIdx].socketId === socket.id);
+
+      if (isCapture) {
+        header.className = 'px-6 py-5 bg-rose-600 text-white';
+        badge.textContent = '⚔️ Pregunta para Comer Ficha';
+        subtitle.textContent = isMyTurn
+          ? 'Responde bien para comerte la ficha rival (+20 casillas). Si fallas regresas al inicio.'
+          : `${playerName} intenta comerte una ficha (+20 casillas si acierta).`;
+      } else {
+        header.className = 'px-6 py-5 bg-indigo-600 text-white';
+        badge.textContent = gameState.pendingMove && gameState.pendingMove.newState === 'track'
+          ? `Pregunta Casillero #${gameState.pendingMove.newPos}`
+          : `Pregunta Pasillo Final`;
+        subtitle.textContent = isMyTurn
+          ? 'Si aciertas te quedas en este casillero; si fallas regresas a tu turno anterior.'
+          : `Pregunta asignada para ${playerName}.`;
+      }
+
+      const options = [
+        { key: 'A', text: question.opcion_a },
+        { key: 'B', text: question.opcion_b },
+        { key: 'C', text: question.opcion_c },
+        { key: 'D', text: question.opcion_d }
+      ];
+
+      if (isMyTurn) {
+        waitingEl.classList.add('hidden');
+        document.getElementById('q-modal-options').innerHTML = options.map(opt => `
+          <button type="button" onclick="responderPreguntaOnline('${opt.key}')"
+            class="q-opt-btn w-full text-left p-3.5 rounded-2xl border border-slate-700 bg-slate-800/80 hover:border-indigo-500 hover:bg-indigo-600/20 text-sm font-semibold text-white transition flex items-center gap-3">
+            <span class="w-8 h-8 rounded-xl bg-slate-700 font-extrabold text-xs flex items-center justify-center text-white shrink-0">${opt.key}</span>
+            <span>${escapeHtml(opt.text)}</span>
+          </button>
+        `).join('');
+      } else {
+        waitingEl.classList.remove('hidden');
+        document.getElementById('q-modal-waiting-text').textContent = `Esperando que ${playerName} responda la pregunta...`;
+        document.getElementById('q-modal-options').innerHTML = options.map(opt => `
+          <div class="w-full text-left p-3.5 rounded-2xl border border-slate-800 bg-slate-900/60 opacity-75 text-sm font-semibold text-slate-300 flex items-center gap-3 cursor-not-allowed">
+            <span class="w-8 h-8 rounded-xl bg-slate-800 font-extrabold text-xs flex items-center justify-center text-slate-400 shrink-0">${opt.key}</span>
+            <span>${escapeHtml(opt.text)}</span>
+          </div>
+        `).join('');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function responderPreguntaOnline(selectedKey) {
+      document.querySelectorAll('.q-opt-btn').forEach(b => b.disabled = true);
+      if (socket && activeOnlineRoom) {
+        socket.emit('responder-pregunta', {
+          codigo: activeOnlineRoom.codigo,
+          selectedKey
+        });
+      }
+    }
+
+    function mostrarFeedbackPreguntaOnline(data) {
+      const { isCorrect, correctKey, feedback } = data;
+      const feedbackEl = document.getElementById('q-modal-feedback');
+      feedbackEl.classList.remove('hidden');
+
+      if (isCorrect) {
+        playSound('success');
+        feedbackEl.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300';
+      } else {
+        playSound('error');
+        feedbackEl.className = 'mt-4 p-4 rounded-2xl text-sm font-bold bg-rose-500/20 border border-rose-500/40 text-rose-300';
+      }
+      feedbackEl.textContent = feedback;
+
+      setTimeout(() => {
+        document.getElementById('question-modal').classList.add('hidden');
+        renderGameUI();
+      }, 1700);
+    }
+
+    function mostrarVictoriaOnline(ganador) {
+      gameState.phase = 'FINISHED';
+      playSound('success');
+      launchConfetti();
+      document.getElementById('victory-player-text').textContent =
+        `🎉 ¡${ganador.student.nombres} ${ganador.student.apellidos} (${ganador.color.name}) llevó sus 4 fichas a la meta y ganó la partida online!`;
+      document.getElementById('victory-modal').classList.remove('hidden');
+    }
+
+    function initSocket() {
+      if (typeof io === 'undefined') {
+        console.warn('Socket.io cliente no cargado (modo estático o sin conexión).');
+        updateSocketStatus(false, 'Solo Modo Local');
+        return;
+      }
+
+      try {
+        socket = io();
+
+        socket.on('connect', () => {
+          socketConnected = true;
+          updateSocketStatus(true, 'Online Listo');
+        });
+
+        socket.on('disconnect', () => {
+          socketConnected = false;
+          updateSocketStatus(false, 'Desconectado');
+        });
+
+        socket.on('error-sala', (err) => {
+          showToast(err.error || 'Error en sala online.', 'error');
+        });
+
+        socket.on('error-juego', (err) => {
+          showToast(err.error || 'Acción no permitida.', 'error');
+        });
+
+        socket.on('sala-creada', (data) => {
+          activeOnlineRoom = data.sala;
+          myOnlinePlayer = data.sala.jugadores.find(j => j.socketId === socket.id) || data.sala.jugadores[0];
+          showToast(`¡Sala privada creada! Código: ${data.codigo}`, 'success');
+          renderOnlineLobby();
+        });
+
+        socket.on('sala-unida', (data) => {
+          activeOnlineRoom = data.sala;
+          myOnlinePlayer = data.jugador;
+          showToast(`Te has unido a la sala ${data.codigo}`, 'success');
+          renderOnlineLobby();
+        });
+
+        socket.on('actualizar-sala', (sala) => {
+          activeOnlineRoom = sala;
+          if (socket) {
+            myOnlinePlayer = sala.jugadores.find(j => j.socketId === socket.id) || myOnlinePlayer;
+          }
+          renderOnlineLobby();
+        });
+
+        socket.on('jugador-desconectado', (data) => {
+          if (data.mensaje) showToast(data.mensaje, 'info');
+          if (data.sala) {
+            activeOnlineRoom = data.sala;
+            renderOnlineLobby();
+          }
+        });
+
+        socket.on('partida-iniciada', (data) => {
+          currentGameMode = 'online';
+          activeOnlineRoom = data.sala;
+          gameState = data.gameState;
+          document.getElementById('nav-juego').classList.remove('hidden');
+          document.getElementById('game-materia-badge').textContent = gameState.materia;
+          document.getElementById('game-log').innerHTML = '';
+          addGameLog(data.logMsg || 'Partida multijugador iniciada.');
+          renderDiceFace(null);
+          switchView('juego');
+          updateGameModeBanner();
+          renderGameUI();
+        });
+
+        socket.on('dado-lanzado', (data) => {
+          const diceEl = document.getElementById('dice-display');
+          document.getElementById('btn-roll-dice').disabled = true;
+          diceEl.classList.add('dice-spin');
+          playSound('dice');
+
+          const anim = setInterval(() => renderDiceFace(Math.floor(Math.random() * 6) + 1), 70);
+          setTimeout(() => {
+            clearInterval(anim);
+            diceEl.classList.remove('dice-spin');
+            gameState = data.gameState;
+            renderDiceFace(data.roll);
+            if (data.logMsg) addGameLog(data.logMsg);
+            if (data.tripleSix) playSound('error');
+            renderGameUI();
+          }, 360);
+        });
+
+        socket.on('estado-tablero-actualizado', (data) => {
+          gameState = data.gameState;
+          playSound('step');
+          if (data.logMsg) addGameLog(data.logMsg);
+          renderGameUI();
+        });
+
+        socket.on('mostrar-pregunta', (data) => {
+          gameState = data.gameState;
+          renderGameUI();
+          if (data.logMsg) addGameLog(data.logMsg);
+          abrirModalPreguntaOnline(data.question, data.isCapture, data.playerIdx, data.playerName);
+        });
+
+        socket.on('pregunta-respondida', (data) => {
+          gameState = data.gameState;
+          mostrarFeedbackPreguntaOnline(data);
+        });
+
+        socket.on('partida-finalizada', (data) => {
+          gameState = data.gameState;
+          renderGameUI();
+          if (data.logMsg) addGameLog(data.logMsg);
+          mostrarVictoriaOnline(data.ganador);
+        });
+      } catch (e) {
+        console.warn('Error al conectar con Socket.io:', e);
+      }
+    }
+
+    // =========================================================================
     // 11. INICIALIZACIÓN
     // =========================================================================
     async function refreshData() {
@@ -2116,11 +2821,13 @@ ANSWER: C`;
       renderQuestionsBank();
       updateMateriaSelector();
       renderLobby();
+      updateOnlineAuthDisplay();
     }
 
     window.onload = async () => {
       await initDatabase();
       await refreshData();
+      initSocket();
     };
   </script>
 </body>
