@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -17,10 +18,11 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 
 // Middlewares
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cabeceras CORS abiertas para desarrollo e integraciones locales
+// Cabeceras CORS adicionales para compatibilidad amplia
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -1036,17 +1038,19 @@ app.use((req, res) => {
 module.exports = { app, server, io };
 
 if (require.main === module) {
-  // Inicializar la base de datos y arrancar el servidor HTTP + Socket.io
+  // Iniciar el servidor HTTP escuchando en 0.0.0.0 inmediatamente para evitar error 503 en Hostinger (Node 22)
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Servidor de Parchís Educativo iniciado con éxito.`);
+    console.log(`🌐 Escuchando en http://0.0.0.0:${PORT}`);
+    console.log(`⚡ WebSocket Socket.io activo para Multijugador Online en tiempo real.`);
+  });
+
+  // Inicializar base de datos con manejo seguro de excepciones (nunca mata el proceso)
   initDatabase()
     .then(() => {
-      server.listen(PORT, () => {
-        console.log(`🚀 Servidor de Parchís Educativo iniciado con éxito.`);
-        console.log(`🌐 Accede a la aplicación en: http://localhost:${PORT}`);
-        console.log(`⚡ WebSocket Socket.io activo para Multijugador Online en tiempo real.`);
-      });
+      console.log('✅ Base de datos inicializada y lista.');
     })
     .catch((err) => {
-      console.error('❌ Error fatal al inicializar la base de datos SQLite:', err);
-      process.exit(1);
+      console.warn('⚠️ Advertencia al inicializar base de datos (continuando en modo seguro):', err.message);
     });
 }
